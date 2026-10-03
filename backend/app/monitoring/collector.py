@@ -21,6 +21,7 @@ from app.config import get_settings
 from app.utils import utcnow
 from app.models.device import Device
 from app.models.metric import MetricSample
+from app.monitoring.real_collector import ping_host
 from app.monitoring.simulator import simulator
 
 settings = get_settings()
@@ -117,7 +118,12 @@ class Collector:
 
         for device in devices:
             self.health.total_poll_attempts += 1
-            raw = simulator.sample(device.device_id, now)
+            raw = self._poll_device(device, now)
+            if raw is None:
+                # polling_mode="live" and this device has no working real
+                # monitoring method configured yet -- it goes stale rather
+                # than getting fabricated simulator data.
+                continue
             is_valid, note = _validate(raw)
             if not is_valid:
                 continue
@@ -149,6 +155,28 @@ class Collector:
         self.health.last_successful_tick_at = now
         self._refresh_stale(now)
         return samples
+
+    def _poll_device(self, device: Device, now: dt.datetime) -> dict | None:
+        """Decide, per device and per the global polling_mode, whether to
+        simulate or really poll it. See Settings.polling_mode for the
+        three-mode breakdown; this is the one place that decision gets
+        made."""
+        mode = settings.polling_mode
+
+        if mode == "simulated":
+            return simulator.sample(device.device_id, now)
+
+        if device.monitoring_method == "icmp":
+            return ping_host(device.ip_address)
+
+        if mode == "hybrid":
+            # Not yet real (snmp/rest aren't implemented) or still marked
+            # "simulated" -- keep the demo alive rather than going dark.
+            return simulator.sample(device.device_id, now)
+
+        # mode == "live": no fallback. A device with no working real
+        # monitoring method configured just doesn't get polled this tick.
+        return None
 
     def _refresh_stale(self, now: dt.datetime) -> None:
         stale: list[str] = []

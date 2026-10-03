@@ -59,18 +59,29 @@ The production evolution path, if this ever needed to scale past a demo:
   a fleet of thousands of real devices would want an actual polling
   queue/worker pool instead of one loop ticking every
   `poll_interval_seconds` (2s by default).
+- **SNMP for CPU/memory/bandwidth.** `app/monitoring/real_collector.py`
+  covers reachability, latency and packet loss over real ICMP today;
+  the three metrics ping can't see need an SNMP client (vendor MIBs,
+  community strings/v3 auth) against the real device, which is a larger
+  and more hardware-specific piece of work than ICMP was.
 
 ## Data flow, one tick at a time
 
 Every `poll_interval_seconds` (default 2s), `app/scheduler.py`'s
 background loop does, in order:
 
-1. **Collect** (`app/monitoring/collector.py`): poll every active device
-   through the simulator (`app/monitoring/simulator.py`), which returns
-   either normal, jittered-but-healthy telemetry or whatever an active
-   fault scenario is injecting. The collector validates each sample
-   (sanity-checks ranges, flags staleness) and persists it as a
-   `MetricSample`. If the simulator's `collector_failure` scenario is
+1. **Collect** (`app/monitoring/collector.py`): poll every active device.
+   `_poll_device()` picks the source per `Settings.polling_mode` and the
+   device's own `monitoring_method`: `POLLING_MODE=simulated` (the
+   default) always uses the simulator (`app/monitoring/simulator.py`),
+   which returns either normal, jittered-but-healthy telemetry or
+   whatever an active fault scenario is injecting; `hybrid` or `live`
+   send any device with `monitoring_method="icmp"` to a real ping
+   instead (`app/monitoring/real_collector.py`, reachability/latency/
+   packet-loss only -- CPU/memory/bandwidth need SNMP, not built). The
+   collector validates each sample (sanity-checks ranges, flags
+   staleness) and persists it as a `MetricSample`. If the simulator's
+   `collector_failure` scenario is
    active, the collector marks itself unhealthy and marks every
    device's data stale -- it does **not** touch device status, which is
    the load-bearing design decision that keeps a collector outage from
