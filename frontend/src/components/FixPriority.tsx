@@ -34,7 +34,7 @@ function timeOf(iso: string) {
 
 function ScoreBar({ item }: { item: PriorityItem }) {
   return (
-    <div className="w-40 shrink-0 text-right">
+    <div className="w-full shrink-0 sm:w-40 sm:text-right">
       <div className="text-2xl font-semibold tabular-nums text-stone-900">
         {Math.round(item.priority_score)}
         <span className="text-xs font-normal text-stone-400">/100</span>
@@ -68,7 +68,7 @@ function PriorityRow({ item }: { item: PriorityItem }) {
       exit={{ opacity: 0, y: -8 }}
       transition={{ type: "spring", stiffness: 300, damping: 30 }}
       className={cn(
-        "flex gap-4 rounded-xl border p-4",
+        "flex flex-wrap gap-4 rounded-2xl border p-4 sm:flex-nowrap",
         first ? "border-brand-orange/40 bg-brand-orange/[0.06]" : "border-stone-200 bg-stone-50",
       )}
     >
@@ -84,7 +84,7 @@ function PriorityRow({ item }: { item: PriorityItem }) {
         {first && <span className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-brand-orange-ink">Fix first</span>}
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-[200px] flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <Link to={`/devices/${item.device_id}`} className="text-sm font-semibold text-stone-900 hover:underline">
             {item.device_id}
@@ -160,11 +160,11 @@ export function FixPriority({ data }: { data: PriorityResult }) {
     <motion.section
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-xl border border-stone-200 bg-white p-5 shadow-sm shadow-stone-900/5"
+      className="rounded-[26px] bg-white p-6 shadow-card"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-stone-800">Fix priority</h3>
+          <h3 className="text-[15px] font-semibold tracking-tight text-stone-900">Fix Priority</h3>
           <p className="text-xs text-stone-500">
             Faulty devices ranked by impact, workload, severity and role. Work from the top down.
           </p>

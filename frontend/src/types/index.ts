@@ -188,12 +188,17 @@ export interface PriorityResult {
   ranked: PriorityItem[];
 }
 
+// Matches what /api/collector/health and the websocket tick actually send.
 export interface CollectorHealth {
   is_healthy: boolean;
-  consecutive_failures: number;
-  last_success_at: string | null;
-  last_failure_at: string | null;
-  last_error: string | null;
+  uptime_seconds: number;
+  last_tick_at: string | null;
+  last_successful_tick_at: string | null;
+  total_ticks: number;
+  polling_success_rate_pct: number;
+  consecutive_collector_failures: number;
+  stale_devices: string[];
+  queue_status: string;
 }
 
 export interface ReportSummary {
@@ -252,8 +257,9 @@ export interface TickMessage {
   timestamp?: string;
   collector_healthy?: boolean;
   device_status?: Record<string, DeviceStatus>;
-  opened_events?: number;
-  recovered_events?: number;
+  // The backend sends the actual events, not a count.
+  opened_events?: { device_id: string; event_type: string }[];
+  recovered_events?: { device_id: string; event_type: string }[];
   incidents_created?: string[];
   incidents_updated?: string[];
   incidents_resolved?: string[];

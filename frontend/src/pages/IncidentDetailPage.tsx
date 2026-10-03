@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { Card, StatTile, Button } from "../components/Card";
 import { ConfidenceLabel, IncidentStatusBadge, SeverityBadge } from "../components/Badges";
 import { IncidentsApi } from "../api/endpoints";
@@ -11,6 +11,7 @@ import type { Incident } from "../types";
 
 export function IncidentDetailPage() {
   const { incidentId } = useParams<{ incidentId: string }>();
+  const { hash } = useLocation();
   const { hasRole, username } = useAuth();
   const { tickVersion } = useLive();
   const [incident, setIncident] = useState<Incident | null>(null);
@@ -32,6 +33,13 @@ export function IncidentDetailPage() {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [incidentId, tickVersion]);
+
+  // "Analyze Root Cause" links here with #root-cause: jump to the candidate ranking once loaded.
+  useEffect(() => {
+    if (incident && hash === "#root-cause") {
+      document.getElementById("root-cause")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [hash, incident?.incident_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) return <p className="text-sm text-red-600">{error}</p>;
   if (!incident) return <p className="text-sm text-stone-500">Loading…</p>;
@@ -112,6 +120,7 @@ export function IncidentDetailPage() {
         )}
       </Card>
 
+      <div id="root-cause" className="scroll-mt-6" />
       <Card title="Ranked candidates">
         <div className="overflow-hidden rounded-lg border border-stone-200">
           <table className="w-full text-left text-sm">

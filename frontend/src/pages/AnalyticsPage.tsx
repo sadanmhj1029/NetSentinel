@@ -84,7 +84,11 @@ export function AnalyticsPage() {
               value={summary.collector_reliability.is_healthy ? "Healthy" : "Unhealthy"}
               tone={summary.collector_reliability.is_healthy ? "good" : "bad"}
             />
-            <StatTile label="Consecutive failures" value={summary.collector_reliability.consecutive_failures} />
+            <StatTile
+              label="Polling success"
+              value={`${summary.collector_reliability.polling_success_rate_pct.toFixed(1)}%`}
+              sub={`${summary.collector_reliability.consecutive_collector_failures} consecutive failures`}
+            />
           </div>
         </Card>
 

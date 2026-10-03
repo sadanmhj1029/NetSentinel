@@ -5,6 +5,17 @@
   --color-brand-orange: #d97757;
   --color-brand-orange-dark: #c2663f;
   --color-brand-orange-ink: #a04d2d;
+
+  /* NOC dashboard surfaces */
+  --color-canvas: #e7e3dc; /* outer page */
+  --color-shell: #f6f4f0; /* rounded app frame */
+  --color-beige: #ddd3c5; /* muted feature card */
+  --color-beige-deep: #cbbfae;
+  --color-ink: #1d1d20; /* dark priority cards */
+  --color-ink-soft: #2a2a2e;
+  --color-ink-line: #3a3a40;
+
+  --shadow-card: 0 1px 2px rgb(28 25 23 / 0.04), 0 8px 24px -12px rgb(28 25 23 / 0.08);
 }
 
 :root {
@@ -19,7 +30,7 @@ body,
 
 body {
   margin: 0;
-  background-color: #faf7f2;
+  background-color: #e7e3dc;
   color: #1c1917;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -42,6 +53,21 @@ body {
 
 .react-flow__attribution {
   display: none;
+}
+
+/* Moving dashes along a link that's under fault (dashboard topology preview). */
+.topo-flow {
+  animation: topo-flow 0.9s linear infinite;
+}
+@keyframes topo-flow {
+  to {
+    stroke-dashoffset: -9;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .topo-flow {
+    animation: none;
+  }
 }
 
 /* ---- Topology canvas ---- */

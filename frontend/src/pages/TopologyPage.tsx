@@ -320,7 +320,7 @@ export function TopologyPage() {
   const selected = devices.find((d) => d.device_id === selectedId) ?? null;
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col gap-4">
+    <div className="flex h-[calc(100dvh-12.5rem)] min-h-[560px] flex-col gap-4">
       <motion.div
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}

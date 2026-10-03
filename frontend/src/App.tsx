@@ -15,6 +15,8 @@ import { AnalyticsPage } from "./pages/AnalyticsPage";
 import { MlAdminPage } from "./pages/MlAdminPage";
 import { AuditPage } from "./pages/AuditPage";
 import { UsersPage } from "./pages/UsersPage";
+import { ReportsPage } from "./pages/ReportsPage";
+import { SettingsPage } from "./pages/SettingsPage";
 
 export default function App() {
   return (
@@ -33,6 +35,8 @@ export default function App() {
                 <Route path="devices" element={<DevicesPage />} />
                 <Route path="devices/:deviceId" element={<DeviceDetailPage />} />
                 <Route path="analytics" element={<AnalyticsPage />} />
+                <Route path="reports" element={<ReportsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
 
                 <Route element={<ProtectedRoute minRole="operator" />}>
                   <Route path="scenarios" element={<ScenariosPage />} />
