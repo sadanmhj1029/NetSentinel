@@ -94,10 +94,15 @@ class ActiveFault:
 
 
 class NetworkSimulator:
+    """Holds any number of simultaneous faults, one per target device, so
+    two unrelated problems (e.g. Switch-01 down while Server-01 is slow)
+    can be injected together and the fix-priority ranking has something
+    real to compare."""
+
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._children = _children_map()
-        self._active_fault: ActiveFault | None = None
+        self._faults: dict[str, ActiveFault] = {}  # target device_id -> fault
         self._collector_failure = False
         self._rng = random.Random()
         self._tick = 0
@@ -117,8 +122,13 @@ class NetworkSimulator:
         with self._lock:
             self._history.append({"action": "start", "scenario": scenario, "target": target, "timestamp": now.isoformat()})
 
+            if scenario == "recovery" and target:
+                # Restore just one device's fault, leave any others running.
+                self._faults.pop(target, None)
+                return {"scenario": scenario, "status": "cleared", "target": target}
+
             if scenario in ("normal", "recovery"):
-                self._active_fault = None
+                self._faults.clear()
                 self._collector_failure = False
                 return {"scenario": scenario, "status": "cleared"}
 
@@ -139,36 +149,46 @@ class NetworkSimulator:
                 for i, desc in enumerate(_descendants(resolved_target, self._children)):
                     fault.affected_since[desc] = now + dt.timedelta(seconds=1 + i * 0.7)
 
-            self._active_fault = fault
+            # Starting a scenario on a device replaces whatever that device
+            # had; faults on other devices keep running.
+            self._faults[resolved_target] = fault
             return {"scenario": scenario, "status": "started", "target": resolved_target}
 
-    def stop_scenario(self, scenario: str) -> dict:
+    def stop_scenario(self, scenario: str, target: str | None = None) -> dict:
         with self._lock:
-            self._history.append({"action": "stop", "scenario": scenario, "timestamp": utcnow().isoformat()})
+            self._history.append(
+                {"action": "stop", "scenario": scenario, "target": target, "timestamp": utcnow().isoformat()}
+            )
             if scenario == "collector_failure":
                 self._collector_failure = False
                 return {"scenario": scenario, "status": "stopped"}
-            if self._active_fault and self._active_fault.scenario == scenario:
-                self._active_fault = None
-                return {"scenario": scenario, "status": "stopped"}
-            return {"scenario": scenario, "status": "not_active"}
+            matching = [
+                t for t, f in self._faults.items() if f.scenario == scenario and (target is None or t == target)
+            ]
+            for t in matching:
+                del self._faults[t]
+            return {"scenario": scenario, "status": "stopped" if matching else "not_active"}
 
     def collector_should_fail(self) -> bool:
         return self._collector_failure
 
     def get_state(self) -> dict:
         with self._lock:
-            fault = self._active_fault
+            faults = sorted(self._faults.values(), key=lambda f: f.started_at)
+            as_dicts = [
+                {
+                    "scenario": f.scenario,
+                    "target": f.target,
+                    "started_at": f.started_at.isoformat(),
+                    "affected_devices": list(f.affected_since.keys()),
+                }
+                for f in faults
+            ]
             return {
                 "collector_failure": self._collector_failure,
-                "active_fault": None
-                if not fault
-                else {
-                    "scenario": fault.scenario,
-                    "target": fault.target,
-                    "started_at": fault.started_at.isoformat(),
-                    "affected_devices": list(fault.affected_since.keys()),
-                },
+                "active_faults": as_dicts,
+                # Kept for older clients: the most recently started fault.
+                "active_fault": as_dicts[-1] if as_dicts else None,
             }
 
     # ---------------------------------------------------------------- #
@@ -200,31 +220,32 @@ class NetworkSimulator:
         }
 
         with self._lock:
-            fault = self._active_fault
+            hitting = [
+                f
+                for f in self._faults.values()
+                if device_id in f.affected_since and now >= f.affected_since[device_id]
+            ]
 
-        if not fault or device_id not in fault.affected_since:
-            return sample
-        if now < fault.affected_since[device_id]:
-            return sample  # hasn't "started" failing yet for this device
-
-        if fault.scenario == "switch_failure":
-            sample.update(
-                reachable=False,
-                latency_ms=None,
-                packet_loss_pct=100.0,
-                cpu_pct=None,
-                memory_pct=None,
-                bandwidth_in_mbps=0.0,
-                bandwidth_out_mbps=0.0,
-            )
-        elif fault.scenario == "high_latency":
-            sample["latency_ms"] = self._rng.uniform(160, 260)
-        elif fault.scenario == "packet_loss_burst":
-            sample["packet_loss_pct"] = self._rng.uniform(15, 45)
-        elif fault.scenario == "bandwidth_saturation":
-            cap = cfg["capacity_mbps"]
-            sample["bandwidth_in_mbps"] = cap * self._rng.uniform(0.85, 0.98)
-            sample["bandwidth_out_mbps"] = cap * self._rng.uniform(0.80, 0.95)
+        # Being unreachable overrides everything else, so apply it last.
+        for fault in sorted(hitting, key=lambda f: f.scenario == "switch_failure"):
+            if fault.scenario == "switch_failure":
+                sample.update(
+                    reachable=False,
+                    latency_ms=None,
+                    packet_loss_pct=100.0,
+                    cpu_pct=None,
+                    memory_pct=None,
+                    bandwidth_in_mbps=0.0,
+                    bandwidth_out_mbps=0.0,
+                )
+            elif fault.scenario == "high_latency":
+                sample["latency_ms"] = self._rng.uniform(160, 260)
+            elif fault.scenario == "packet_loss_burst":
+                sample["packet_loss_pct"] = self._rng.uniform(15, 45)
+            elif fault.scenario == "bandwidth_saturation":
+                cap = cfg["capacity_mbps"]
+                sample["bandwidth_in_mbps"] = cap * self._rng.uniform(0.85, 0.98)
+                sample["bandwidth_out_mbps"] = cap * self._rng.uniform(0.80, 0.95)
 
         return sample
 

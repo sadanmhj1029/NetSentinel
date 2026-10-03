@@ -14,6 +14,7 @@ from app.api import (
     routes_devices,
     routes_incidents,
     routes_ml,
+    routes_priority,
     routes_reports,
     routes_scenarios,
     routes_topology,
@@ -56,6 +57,7 @@ app.include_router(routes_incidents.router)
 app.include_router(routes_scenarios.router)
 app.include_router(routes_collector.router)
 app.include_router(routes_reports.router)
+app.include_router(routes_priority.router)
 app.include_router(routes_ml.router)
 app.include_router(routes_audit.router)
 app.include_router(routes_users.router)

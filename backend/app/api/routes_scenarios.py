@@ -34,9 +34,16 @@ def start_scenario(
 
 
 @router.post("/{scenario_id}/stop")
-def stop_scenario(scenario_id: str, db: Session = Depends(get_db), user=Depends(require_role("operator"))):
+def stop_scenario(
+    scenario_id: str,
+    body: ScenarioStart | None = None,
+    db: Session = Depends(get_db),
+    user=Depends(require_role("operator")),
+):
+    # Optional {"target": "..."} stops the scenario on just that device;
+    # without it, every running copy of the scenario is stopped.
     try:
-        result = simulator.stop_scenario(scenario_id)
+        result = simulator.stop_scenario(scenario_id, body.target if body else None)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
     audit.record(db, user.username, "scenario_stopped", resource=scenario_id, new_state=result)

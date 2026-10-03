@@ -27,7 +27,7 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.correlation.root_cause import AffectedDevice, build_diagnosis_text, score_candidates
-from app.correlation.topology_graph import ancestors, load_graph
+from app.correlation.topology_graph import ancestors, load_graph, parents
 from app.detection.baseline import baseline_store
 from app.detection.rules import RuleEngine, RuleType, rule_engine
 from app.incidents.checks import EVENT_LABELS, checks_for
@@ -322,22 +322,21 @@ class IncidentEngine:
         returned sets contain affected devices only."""
         if not affected_ids:
             return []
-        nodes = set(affected_ids)
-        for d in affected_ids:
-            nodes |= ancestors(graph, d)
-        induced = graph.subgraph(nodes).to_undirected()
-
-        merged: list[set[str]] = []
-        seen: set[str] = set()
-        for node in nodes:
-            if node in seen:
-                continue
-            comp = nx.node_connected_component(induced, node)
-            seen |= comp
-            affected_in_comp = comp & affected_ids
-            if affected_in_comp:
-                merged.append(affected_in_comp)
-        return merged
+        # Two affected devices belong together when one sits behind the
+        # other (a failure propagating down), or when they hang off the same
+        # direct parent (that parent may be the silent root cause). Linking
+        # through *any* shared ancestor would merge everything, because the
+        # top router is an ancestor of every device.
+        link = nx.Graph()
+        link.add_nodes_from(affected_ids)
+        ids = sorted(affected_ids)
+        for i, a in enumerate(ids):
+            a_up = ancestors(graph, a)
+            a_parents = set(parents(graph, a))
+            for b in ids[i + 1 :]:
+                if a in ancestors(graph, b) or b in a_up or (a_parents & set(parents(graph, b))):
+                    link.add_edge(a, b)
+        return [set(c) for c in nx.connected_components(link)]
 
     def _find_matching_incident(self, db: Session, device_ids) -> str | None:
         device_ids = set(device_ids)

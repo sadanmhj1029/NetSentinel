@@ -6,7 +6,7 @@ import { Link } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { Monitor, Network, Router, Server, Boxes, X, ArrowUpRight } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { TopologyApi } from "../api/endpoints";
+import { PriorityApi, TopologyApi } from "../api/endpoints";
 import { useLive } from "../store/LiveContext";
 import { layoutTopology } from "../lib/layout";
 import { cn } from "../lib/utils";
@@ -15,7 +15,7 @@ import { Tilt } from "../components/motion-primitives/tilt";
 import { GlowEffect } from "../components/motion-primitives/glow-effect";
 import { BorderTrail } from "../components/motion-primitives/border-trail";
 import { TextShimmer } from "../components/motion-primitives/text-shimmer";
-import type { Device, TopologyLink } from "../types";
+import type { Device, PriorityItem, TopologyLink } from "../types";
 
 const TYPE_ICONS: Record<string, LucideIcon> = {
   router: Router,
@@ -31,7 +31,31 @@ const STATUS_TILE: Record<string, string> = {
   unknown: "bg-stone-100 text-stone-500 ring-stone-200",
 };
 
-type NodeData = Device & { selected: boolean; onSelect: () => void; enterDelay: number };
+type NodeData = Device & {
+  selected: boolean;
+  onSelect: () => void;
+  enterDelay: number;
+  priority: PriorityItem | null;
+};
+
+/** "#1 Fix first" style tag pinned to a faulty node's corner. Knock-on devices get none. */
+function PriorityTag({ item }: { item: PriorityItem | null }) {
+  if (!item || item.caused_by) return null;
+  const first = item.is_first_priority;
+  return (
+    <motion.span
+      initial={{ scale: 0.6, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      className={cn(
+        "absolute -right-2 -top-2.5 z-20 rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm",
+        first ? "bg-brand-orange text-white" : "bg-white text-stone-700 ring-1 ring-stone-300",
+      )}
+    >
+      #{item.rank}
+      {first ? " Fix first" : ""}
+    </motion.span>
+  );
+}
 
 function DeviceNode({ data }: NodeProps<NodeData>) {
   const isRootCause = (data.is_root_cause_of ?? []).length > 0;
@@ -47,6 +71,7 @@ function DeviceNode({ data }: NodeProps<NodeData>) {
         transition={{ delay: data.enterDelay, type: "spring", stiffness: 260, damping: 24 }}
       >
         <Tilt rotationFactor={7} springOptions={{ stiffness: 260, damping: 20 }} className="relative">
+          <PriorityTag item={data.priority} />
           {isRootCause && <GlowEffect colors={["#ef4444", "#f97316"]} mode="pulse" />}
           {!isRootCause && hasIncident && <GlowEffect colors={["#f59e0b"]} mode="breathe" />}
           <button
@@ -105,7 +130,15 @@ function SummaryChip({ label, value, tone }: { label: string; value: number; ton
   );
 }
 
-function Inspector({ device, onClose }: { device: Device; onClose: () => void }) {
+function Inspector({
+  device,
+  priority,
+  onClose,
+}: {
+  device: Device;
+  priority: PriorityItem | null;
+  onClose: () => void;
+}) {
   const Icon = TYPE_ICONS[device.device_type] ?? Boxes;
   const rootOf = device.is_root_cause_of ?? [];
   const incidents = device.active_incidents ?? [];
@@ -162,6 +195,27 @@ function Inspector({ device, onClose }: { device: Device; onClose: () => void })
         </div>
       )}
 
+      {priority && (
+        <div
+          className={cn(
+            "mt-3 rounded-xl border px-3 py-2.5",
+            priority.is_first_priority ? "border-brand-orange/40 bg-brand-orange/[0.06]" : "border-stone-200 bg-stone-50",
+          )}
+        >
+          <div className="flex items-center justify-between text-xs">
+            <span className="font-semibold text-stone-800">
+              {priority.caused_by ? "Knock-on effect" : `Fix priority #${priority.rank}`}
+              {priority.is_first_priority && <span className="text-brand-orange-ink"> · fix first</span>}
+            </span>
+            {!priority.caused_by && (
+              <span className="tabular-nums text-stone-500">{Math.round(priority.priority_score)}/100</span>
+            )}
+          </div>
+          <p className="mt-1 text-xs leading-relaxed text-stone-700">{priority.problem.summary}</p>
+          <p className="mt-1 text-xs leading-relaxed text-stone-500">{priority.impact.summary}</p>
+        </div>
+      )}
+
       <dl className="mt-4 divide-y divide-stone-100 text-sm">
         {rows.map(([k, v]) => (
           <div key={k} className="flex justify-between gap-4 py-2">
@@ -196,6 +250,7 @@ export function TopologyPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [edges, setEdges] = useState<TopologyLink[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [priorityById, setPriorityById] = useState<Record<string, PriorityItem>>({});
   const { tickVersion, connected } = useLive();
   const flowRef = useRef<ReactFlowInstance | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -222,6 +277,9 @@ export function TopologyPage() {
       setDevices(topo.nodes);
       setEdges(topo.edges);
     });
+    PriorityApi.get()
+      .then((p) => setPriorityById(Object.fromEntries(p.ranked.map((r) => [r.device_id, r]))))
+      .catch(() => setPriorityById({}));
   }, [tickVersion]);
 
   const { flowNodes, flowEdges } = useMemo(() => {
@@ -235,6 +293,7 @@ export function TopologyPage() {
         selected: d.device_id === selectedId,
         onSelect: () => setSelectedId((cur) => (cur === d.device_id ? null : d.device_id)),
         enterDelay: (positions[d.device_id]?.y ?? 0) / 170 * 0.12 + i * 0.03,
+        priority: priorityById[d.device_id] ?? null,
       },
     }));
     const troubled = (id: string) => {
@@ -253,7 +312,7 @@ export function TopologyPage() {
       };
     });
     return { flowNodes, flowEdges };
-  }, [devices, edges, selectedId]);
+  }, [devices, edges, selectedId, priorityById]);
 
   const counts = { online: 0, degraded: 0, offline: 0, unknown: 0 };
   for (const d of devices) counts[d.status]++;
@@ -325,7 +384,13 @@ export function TopologyPage() {
         </div>
 
         <AnimatePresence mode="wait">
-          {selected && <Inspector device={selected} onClose={() => setSelectedId(null)} />}
+          {selected && (
+            <Inspector
+              device={selected}
+              priority={priorityById[selected.device_id] ?? null}
+              onClose={() => setSelectedId(null)}
+            />
+          )}
         </AnimatePresence>
       </div>
     </div>

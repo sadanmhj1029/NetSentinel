@@ -38,11 +38,11 @@ export function ScenariosPage() {
     }
   }
 
-  async function handleStop(id: string) {
+  async function handleStop(id: string, stopTarget?: string) {
     setError(null);
     setBusyId(id);
     try {
-      await ScenariosApi.stop(id);
+      await ScenariosApi.stop(id, stopTarget);
       await refresh();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not stop scenario");
@@ -51,32 +51,49 @@ export function ScenariosPage() {
     }
   }
 
-  const activeFault = state?.active_fault;
+  const activeFaults = state?.active_faults ?? [];
   const collectorFailing = state?.collector_failure;
+  const SCENARIO_NAMES: Record<string, string> = Object.fromEntries(scenarios.map((s) => [s.id, s.description]));
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-xl font-semibold text-stone-900">Fault Injection Lab</h1>
         <p className="text-sm text-stone-500">
-          Trigger a controlled scenario and watch detection, correlation and recovery run end to end.
+          Trigger a controlled scenario and watch detection, correlation and recovery run end to end. You can run
+          several faults at once on different devices to see how the Fix priority ranking compares them.
         </p>
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <Card title="Current state">
-        {activeFault ? (
-          <p className="text-sm text-stone-700">
-            <span className="font-medium text-amber-700">{activeFault.scenario}</span> active on{" "}
-            <span className="font-medium">{activeFault.target}</span> since{" "}
-            {new Date(activeFault.started_at).toLocaleTimeString()}. Affected:{" "}
-            {activeFault.affected_devices.join(", ")}
-          </p>
-        ) : collectorFailing ? (
-          <p className="text-sm text-amber-700">Collector failure is active — all devices will report stale.</p>
+      <Card title={`Current state${activeFaults.length > 1 ? ` · ${activeFaults.length} faults running` : ""}`}>
+        {collectorFailing && (
+          <p className="mb-2 text-sm text-amber-700">Collector failure is active. All devices will report stale.</p>
+        )}
+        {activeFaults.length > 0 ? (
+          <ul className="space-y-2">
+            {activeFaults.map((f) => (
+              <li
+                key={f.target}
+                className="flex items-center justify-between gap-3 rounded-lg border border-stone-200 bg-stone-50 px-3 py-2 text-sm"
+              >
+                <span className="text-stone-700">
+                  <span className="font-medium text-amber-700">{SCENARIO_NAMES[f.scenario] ?? f.scenario}</span> on{" "}
+                  <span className="font-medium text-stone-900">{f.target}</span> since{" "}
+                  {new Date(f.started_at).toLocaleTimeString()}
+                  {f.affected_devices.length > 1 && (
+                    <span className="text-stone-500"> · affects {f.affected_devices.join(", ")}</span>
+                  )}
+                </span>
+                <Button variant="secondary" onClick={() => handleStop(f.scenario, f.target)} disabled={busyId === f.scenario}>
+                  Stop
+                </Button>
+              </li>
+            ))}
+          </ul>
         ) : (
-          <p className="text-sm text-emerald-600">Network is in its normal state. No active fault.</p>
+          !collectorFailing && <p className="text-sm text-emerald-600">Network is in its normal state. No active fault.</p>
         )}
       </Card>
 
@@ -97,8 +114,8 @@ export function ScenariosPage() {
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {scenarios.map((s) => {
-          const isRunning =
-            (activeFault && activeFault.scenario === s.id) || (s.id === "collector_failure" && collectorFailing);
+          const runningOn = activeFaults.filter((f) => f.scenario === s.id).map((f) => f.target);
+          const isRunning = runningOn.length > 0 || (s.id === "collector_failure" && collectorFailing);
           const isControl = s.id === "normal" || s.id === "recovery";
           return (
             <Card key={s.id}>
@@ -109,7 +126,7 @@ export function ScenariosPage() {
                 </div>
                 {isRunning && (
                   <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-xs font-medium text-amber-700">
-                    running
+                    running{runningOn.length ? ` on ${runningOn.join(", ")}` : ""}
                   </span>
                 )}
               </div>

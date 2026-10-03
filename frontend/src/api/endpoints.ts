@@ -6,6 +6,7 @@ import type {
   Incident,
   MetricSample,
   MlStatus,
+  PriorityResult,
   ReportSummary,
   Role,
   Scenario,
@@ -93,8 +94,11 @@ export const ScenariosApi = {
       `/api/scenarios/${encodeURIComponent(id)}/start`,
       { target }
     ),
-  stop: (id: string) =>
-    api.post<{ scenario: string; status: string }>(`/api/scenarios/${encodeURIComponent(id)}/stop`, {}),
+  stop: (id: string, target?: string) =>
+    api.post<{ scenario: string; status: string }>(
+      `/api/scenarios/${encodeURIComponent(id)}/stop`,
+      target ? { target } : {}
+    ),
 };
 
 export const CollectorApi = {
@@ -103,6 +107,10 @@ export const CollectorApi = {
 
 export const ReportsApi = {
   summary: () => api.get<ReportSummary>("/api/reports/summary"),
+};
+
+export const PriorityApi = {
+  get: () => api.get<PriorityResult>("/api/priority"),
 };
 
 export const MlApi = {

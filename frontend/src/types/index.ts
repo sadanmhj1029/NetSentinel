@@ -145,14 +145,47 @@ export interface Scenario {
   description: string;
 }
 
+export interface ActiveFault {
+  scenario: string;
+  target: string;
+  started_at: string;
+  affected_devices: string[];
+}
+
 export interface SimulatorState {
   collector_failure: boolean;
-  active_fault: {
-    scenario: string;
-    target: string;
-    started_at: string;
-    affected_devices: string[];
-  } | null;
+  active_faults: ActiveFault[];
+  active_fault: ActiveFault | null;
+}
+
+export type PriorityLevel = "critical" | "high" | "medium" | "low" | "follow_up";
+
+export interface PriorityItem {
+  rank: number;
+  device_id: string;
+  device_type: string;
+  status: DeviceStatus;
+  priority_score: number;
+  level: PriorityLevel;
+  is_first_priority: boolean;
+  is_root_cause: boolean;
+  caused_by: string | null;
+  problem: { type: string; title: string; summary: string; also_seen: string[]; since: string };
+  impact: { summary: string; dependents: string[]; dependents_count: number };
+  workload: { traffic_mbps: number | null; cpu_pct: number | null; capacity_mbps: number | null };
+  score_breakdown: { impact: number; workload: number; severity: number; role: number };
+  recommended_checks: string[];
+  incident_ids: string[];
+}
+
+export interface PriorityResult {
+  generated_at: string;
+  collector_healthy: boolean;
+  faulty_count: number;
+  headline: string;
+  why_first: string | null;
+  weights?: { impact: number; workload: number; severity: number; role: number };
+  ranked: PriorityItem[];
 }
 
 export interface CollectorHealth {

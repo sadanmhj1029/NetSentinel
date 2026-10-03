@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, StatTile, Switch } from "../components/Card";
 import { DashboardHero } from "../components/DashboardHero";
+import { FixPriority } from "../components/FixPriority";
 import { IncidentStatusBadge, SeverityBadge, StatusBadge } from "../components/Badges";
-import { DevicesApi, IncidentsApi, ReportsApi } from "../api/endpoints";
+import { DevicesApi, IncidentsApi, PriorityApi, ReportsApi } from "../api/endpoints";
 import { useLive } from "../store/LiveContext";
-import type { Device, Incident, ReportSummary, TickMessage } from "../types";
+import type { Device, Incident, PriorityResult, ReportSummary, TickMessage } from "../types";
 
 const LIVE_FEED_PREF_KEY = "netsentinel:showLiveFeed";
 
@@ -27,6 +28,7 @@ export function DashboardPage() {
   const [devices, setDevices] = useState<Device[] | null>(null);
   const [incidents, setIncidents] = useState<Incident[] | null>(null);
   const [summary, setSummary] = useState<ReportSummary | null>(null);
+  const [priority, setPriority] = useState<PriorityResult | null>(null);
   const [feed, setFeed] = useState<FeedEntry[]>([]);
   const [showLiveFeed, setShowLiveFeed] = useState(() => {
     try {
@@ -47,14 +49,16 @@ export function DashboardPage() {
   }
 
   async function refresh() {
-    const [d, i, s] = await Promise.all([
+    const [d, i, s, p] = await Promise.all([
       DevicesApi.list(),
       IncidentsApi.list(),
       ReportsApi.summary().catch(() => null),
+      PriorityApi.get().catch(() => null),
     ]);
     setDevices(d);
     setIncidents(i);
     setSummary(s);
+    setPriority(p);
   }
 
   useEffect(() => {
@@ -70,7 +74,7 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (!showLiveFeed || !lastTick) return;
-    setFeed((prev) => [{ ...lastTick, key: tickVersion }, ...prev].slice(0, 15));
+    setFeed((prev) => [{ ...lastTick, key: tickVersion }, ...prev].slice(0, 100));
   }, [lastTick, tickVersion, showLiveFeed]);
 
   const counts = { online: 0, degraded: 0, offline: 0, unknown: 0 };
@@ -81,6 +85,9 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       <DashboardHero title="Dashboard" subtitle="Live overview of the monitored network." />
+
+      {/* Only appears while something is broken: the first thing to read when it matters. */}
+      {priority && priority.faulty_count > 0 && <FixPriority data={priority} />}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatTile label="Devices online" value={counts.online} tone="good" sub={`${devices?.length ?? 0} total`} />
@@ -145,7 +152,11 @@ export function DashboardPage() {
           ) : feed.length === 0 ? (
             <p className="text-sm text-stone-500">Waiting for the next monitoring tick…</p>
           ) : (
-            <ul className="space-y-2 text-xs">
+            // Fixed-height box that scrolls on its own, so new ticks never push the rest of the dashboard down.
+            <ul className="live-feed-scroll -mr-2 h-72 space-y-2 overflow-y-auto overscroll-contain pr-2 text-xs">
+              <li className="sticky top-0 z-10 -mt-px bg-white pb-1 text-[11px] text-stone-400">
+                Newest first · last {feed.length} ticks
+              </li>
               {feed.map((entry) => (
                 <li key={entry.key} className="rounded-lg border border-stone-200 bg-stone-50 px-3 py-2">
                   {entry.type === "tick_error" ? (
