@@ -58,7 +58,7 @@ function eventsFromTick(tick: TickMessage, prevCollectorHealthy: boolean | null,
 }
 
 export function LiveProvider({ children }: { children: ReactNode }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, token, logout } = useAuth();
   const [connected, setConnected] = useState(false);
   const [lastTick, setLastTick] = useState<TickMessage | null>(null);
   const [tickVersion, setTickVersion] = useState(0);
@@ -79,15 +79,21 @@ export function LiveProvider({ children }: { children: ReactNode }) {
     closedByUsRef.current = false;
 
     function connect() {
-      const ws = new WebSocket(wsUrl("/ws/live"));
+      const ws = new WebSocket(wsUrl("/ws/live", token));
       socketRef.current = ws;
 
       ws.onopen = () => setConnected(true);
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         setConnected(false);
-        if (!closedByUsRef.current) {
-          timerRef.current = setTimeout(connect, RECONNECT_DELAY_MS);
+        if (closedByUsRef.current) return;
+        if (event.code === 1008) {
+          // Server rejected the token (missing/expired/invalid) -- retrying
+          // on a loop would just hit the same rejection every 3s, so treat
+          // it like any other 401 and log out instead.
+          logout();
+          return;
         }
+        timerRef.current = setTimeout(connect, RECONNECT_DELAY_MS);
       };
       ws.onerror = () => ws.close();
       ws.onmessage = (event) => {
@@ -116,7 +122,7 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       if (timerRef.current) clearTimeout(timerRef.current);
       socketRef.current?.close();
     };
-  }, [isAuthenticated]);
+  }, [isAuthenticated, token, logout]);
 
   const markAllRead = useCallback(() => setUnread(0), []);
 

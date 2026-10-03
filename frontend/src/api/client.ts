@@ -69,7 +69,8 @@ export const api = {
   postForm: <T>(path: string, form: Record<string, string>) => request<T>(path, { method: "POST", form }),
 };
 
-export function wsUrl(path: string): string {
+export function wsUrl(path: string, token?: string | null): string {
   const base = import.meta.env.VITE_WS_BASE_URL || "ws://localhost:8000";
-  return `${base}${path}`;
+  const query = token ? `?token=${encodeURIComponent(token)}` : "";
+  return `${base}${path}${query}`;
 }
