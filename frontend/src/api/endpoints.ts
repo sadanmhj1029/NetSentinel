@@ -128,3 +128,43 @@ export const UsersApi = {
   list: () => api.get<User[]>("/api/users"),
   create: (body: { username: string; password: string; role: Role }) => api.post<User>("/api/users", body),
 };
+
+export interface DiscoveredDevice {
+  ip_address: string;
+  hostname: string;
+  latency_ms: number;
+  open_ports: number[];
+  services: string[];
+  suggested_device_type: string;
+  suggested_device_id: string;
+}
+
+export interface DiscoveryScanResult {
+  subnet: string;
+  total_probed: number;
+  live_count: number;
+  duration_seconds: number;
+  scanned_at: string;
+  devices: DiscoveredDevice[];
+}
+
+export const DiscoveryApi = {
+  status: () => api.get<{ is_scanning: boolean; last_result: DiscoveryScanResult | null }>("/api/discovery/status"),
+  scan: (subnet = "192.168.1.0/24", timeout_sec = 0.6) =>
+    api.post<DiscoveryScanResult>("/api/discovery/scan", { subnet, timeout_sec }),
+  import: (devices: Partial<DiscoveredDevice>[], uplink_parent_id?: string) =>
+    api.post<{ status: string; imported_count: number; imported_device_ids: string[] }>(
+      "/api/discovery/import",
+      { devices, uplink_parent_id }
+    ),
+};
+
+export const SettingsApi = {
+  getNotifications: () => api.get<Record<string, any>>("/api/settings/notifications"),
+  testNotification: (custom_message?: string) =>
+    api.post<{ status: string; delivered_via: string[]; message: string; channels: Record<string, any> }>(
+      "/api/settings/notifications/test",
+      { custom_message }
+    ),
+};
+

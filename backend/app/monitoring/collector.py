@@ -21,6 +21,7 @@ from app.config import get_settings
 from app.utils import utcnow
 from app.models.device import Device
 from app.models.metric import MetricSample
+from app.monitoring.live_poller import live_poller
 from app.monitoring.simulator import simulator
 
 settings = get_settings()
@@ -117,7 +118,15 @@ class Collector:
 
         for device in devices:
             self.health.total_poll_attempts += 1
-            raw = simulator.sample(device.device_id, now)
+            use_live = (
+                device.monitoring_method in ("icmp", "snmp", "live", "real", "tcp")
+                or (settings.polling_mode == "live" and device.monitoring_method != "simulated")
+            )
+            if use_live:
+                raw = live_poller.sample(device, now)
+            else:
+                raw = simulator.sample(device.device_id, now)
+
             is_valid, note = _validate(raw)
             if not is_valid:
                 continue

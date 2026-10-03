@@ -12,11 +12,13 @@ from app.api import (
     routes_auth,
     routes_collector,
     routes_devices,
+    routes_discovery,
     routes_incidents,
     routes_ml,
     routes_priority,
     routes_reports,
     routes_scenarios,
+    routes_settings,
     routes_topology,
     routes_users,
     routes_ws,
@@ -53,6 +55,8 @@ app.add_middleware(
 app.include_router(routes_auth.router)
 app.include_router(routes_devices.router)
 app.include_router(routes_topology.router)
+app.include_router(routes_discovery.router)
+app.include_router(routes_settings.router)
 app.include_router(routes_incidents.router)
 app.include_router(routes_scenarios.router)
 app.include_router(routes_collector.router)

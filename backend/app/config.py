@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     # Monitoring / collector
     poll_interval_seconds: float = 2.0
     collector_stale_after_seconds: float = 10.0
+    polling_mode: str = "hybrid"  # "simulated" | "hybrid" | "live"
 
     # Rule-detection thresholds (defaults; also configurable per-device via the API)
     rule_consecutive_fails: int = 3
@@ -57,6 +58,13 @@ class Settings(BaseSettings):
     # Notifications
     notify_webhook_url: str = ""
     notify_email_enabled: bool = False
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "netsentinel@companya.com"
+    smtp_to: str = ""
+    smtp_use_tls: bool = True
     notify_telegram_bot_token: str = ""
     notify_telegram_chat_id: str = ""
 

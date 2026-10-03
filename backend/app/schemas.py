@@ -64,3 +64,20 @@ class TopologyLinkCreate(BaseModel):
     source_device_id: str
     destination_device_id: str
     link_type: str = "ethernet"
+
+
+class DiscoveryScanRequest(BaseModel):
+    subnet: str = "192.168.1.0/24"
+    timeout_sec: float = 0.6
+    max_hosts: int = 256
+
+
+class DiscoveryImportRequest(BaseModel):
+    devices: list[dict]
+    uplink_parent_id: str | None = None
+    site: str = "HQ"
+    department: str = "IT"
+
+
+class NotificationTestRequest(BaseModel):
+    custom_message: str | None = None

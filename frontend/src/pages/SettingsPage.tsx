@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { LogOut, ScrollText, Users } from "lucide-react";
-import { Card, Switch } from "../components/Card";
+import { BellRing, CheckCircle2, LogOut, Mail, MessageSquare, ScrollText, Send, Terminal, Users, Webhook } from "lucide-react";
+import { Button, Card, Switch } from "../components/Card";
 import { Initials } from "../components/shell/Sidebar";
 import { API_BASE_URL } from "../api/client";
-import { CollectorApi } from "../api/endpoints";
+import { CollectorApi, SettingsApi } from "../api/endpoints";
 import { useAuth } from "../store/AuthContext";
 import { useLive } from "../store/LiveContext";
 import { glassAvailable, glassEnabledPref, scheduleSnapshotRefresh, setGlassEnabledPref } from "../lib/liquidGlass";
@@ -31,6 +31,9 @@ export function SettingsPage() {
   const { username, role, logout, hasRole } = useAuth();
   const { connected } = useLive();
   const [collector, setCollector] = useState<CollectorHealth | null>(null);
+  const [channels, setChannels] = useState<Record<string, any> | null>(null);
+  const [testingAlert, setTestingAlert] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
   const [streamDefault, setStreamDefault] = useState(() => {
     try {
       return localStorage.getItem(LIVE_FEED_PREF_KEY) === "1";
@@ -50,7 +53,21 @@ export function SettingsPage() {
 
   useEffect(() => {
     CollectorApi.health().then(setCollector).catch(() => {});
+    SettingsApi.getNotifications().then(setChannels).catch(() => {});
   }, []);
+
+  async function handleTestAlert() {
+    setTestingAlert(true);
+    setTestResult(null);
+    try {
+      const res = await SettingsApi.testNotification("Verification alert sent from Settings UI");
+      setTestResult(`Delivered via: ${res.delivered_via.join(", ")}`);
+    } catch {
+      setTestResult("Failed to dispatch test notification.");
+    } finally {
+      setTestingAlert(false);
+    }
+  }
 
   function setStream(v: boolean) {
     setStreamDefault(v);
@@ -130,6 +147,72 @@ export function SettingsPage() {
               </div>
             ))}
           </dl>
+        </Card>
+
+        <Card title="Alert Notification Channels">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between rounded-xl bg-stone-50 p-3">
+              <div className="flex items-center gap-3">
+                <Terminal className="h-5 w-5 text-stone-500" />
+                <div>
+                  <div className="text-sm font-medium text-stone-900">Console / Stdout</div>
+                  <div className="text-xs text-stone-500">Live logs in backend runtime</div>
+                </div>
+              </div>
+              <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">Active</span>
+            </div>
+
+            <div className="flex items-center justify-between rounded-xl bg-stone-50 p-3">
+              <div className="flex items-center gap-3">
+                <Webhook className="h-5 w-5 text-stone-500" />
+                <div>
+                  <div className="text-sm font-medium text-stone-900">Slack / Teams Webhook</div>
+                  <div className="text-xs text-stone-500 truncate max-w-xs">{channels?.webhook?.target ?? "Configured via NOTIFY_WEBHOOK_URL"}</div>
+                </div>
+              </div>
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${channels?.webhook?.enabled ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>
+                {channels?.webhook?.enabled ? "Configured" : "Unset"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between rounded-xl bg-stone-50 p-3">
+              <div className="flex items-center gap-3">
+                <Mail className="h-5 w-5 text-stone-500" />
+                <div>
+                  <div className="text-sm font-medium text-stone-900">Email (SMTP Alerts)</div>
+                  <div className="text-xs text-stone-500">{channels?.email?.enabled ? `Host: ${channels.email.host}` : "Set SMTP_HOST & NOTIFY_EMAIL_ENABLED"}</div>
+                </div>
+              </div>
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${channels?.email?.enabled ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>
+                {channels?.email?.enabled ? "Active" : "Unset"}
+              </span>
+            </div>
+
+            <div className="flex items-center justify-between rounded-xl bg-stone-50 p-3">
+              <div className="flex items-center gap-3">
+                <MessageSquare className="h-5 w-5 text-stone-500" />
+                <div>
+                  <div className="text-sm font-medium text-stone-900">Telegram Bot</div>
+                  <div className="text-xs text-stone-500">{channels?.telegram?.enabled ? "Bot token & Chat ID set" : "Set NOTIFY_TELEGRAM_BOT_TOKEN"}</div>
+                </div>
+              </div>
+              <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${channels?.telegram?.enabled ? "bg-emerald-100 text-emerald-800" : "bg-stone-200 text-stone-600"}`}>
+                {channels?.telegram?.enabled ? "Active" : "Unset"}
+              </span>
+            </div>
+
+            {hasRole("operator") && (
+              <div className="pt-2">
+                <Button onClick={handleTestAlert} disabled={testingAlert} variant="secondary" className="w-full justify-center gap-2">
+                  <Send className="h-4 w-4" />
+                  {testingAlert ? "Dispatching test alert…" : "Dispatch Test Alert Across Channels"}
+                </Button>
+                {testResult && (
+                  <p className="mt-2 text-center text-xs font-medium text-brand-orange-ink">{testResult}</p>
+                )}
+              </div>
+            )}
+          </div>
         </Card>
 
         {hasRole("admin") && (
