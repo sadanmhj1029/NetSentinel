@@ -55,7 +55,7 @@ interface SearchResult {
   incident?: Incident;
 }
 
-function GlobalSearch({ devices, incidents }: { devices: Device[]; incidents: Incident[] }) {
+function GlobalSearch({ devices, incidents, surface }: { devices: Device[]; incidents: Incident[]; surface: string }) {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [cursor, setCursor] = useState(0);
@@ -115,7 +115,7 @@ function GlobalSearch({ devices, incidents }: { devices: Device[]; incidents: In
 
   return (
     <div ref={ref} className="relative min-w-0 flex-1 sm:w-72 sm:flex-none lg:w-80">
-      <label className="flex h-11 items-center gap-2 rounded-full bg-white px-4 shadow-card focus-within:ring-2 focus-within:ring-brand-orange/40">
+      <label className={cn("flex h-11 items-center gap-2 rounded-full px-4 focus-within:ring-2 focus-within:ring-brand-orange/40", surface)}>
         <Search className="h-4 w-4 text-stone-400" />
         <input
           ref={inputRef}
@@ -136,7 +136,7 @@ function GlobalSearch({ devices, incidents }: { devices: Device[]; incidents: In
             }
           }}
           placeholder="Search devices or incidents"
-          className="min-w-0 flex-1 bg-transparent text-sm text-stone-900 outline-none placeholder:text-stone-400"
+          className="min-w-0 flex-1 bg-transparent text-sm text-stone-900 outline-none placeholder:text-stone-500"
         />
         <kbd className="hidden rounded border border-stone-200 px-1.5 text-[10px] text-stone-400 sm:block">/</kbd>
       </label>
@@ -176,7 +176,7 @@ function GlobalSearch({ devices, incidents }: { devices: Device[]; incidents: In
 // --------------------------------------------------------------------------- //
 // Notifications: active incidents + live events
 // --------------------------------------------------------------------------- //
-function Notifications({ active }: { active: Incident[] }) {
+function Notifications({ active, surface }: { active: Incident[]; surface: string }) {
   const { events, unread, markAllRead } = useLive();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -191,7 +191,7 @@ function Notifications({ active }: { active: Incident[] }) {
           markAllRead();
         }}
         aria-label={`Notifications${count ? `, ${count} new` : ""}`}
-        className="relative flex h-11 w-11 items-center justify-center rounded-full bg-white text-stone-600 shadow-card hover:text-stone-900"
+        className={cn("relative flex h-11 w-11 items-center justify-center rounded-full text-stone-700 hover:text-stone-900", surface)}
       >
         <Bell className="h-[18px] w-[18px]" strokeWidth={1.9} />
         {(count > 0 || active.length > 0) && (
@@ -261,7 +261,7 @@ function Notifications({ active }: { active: Incident[] }) {
 // --------------------------------------------------------------------------- //
 // Profile menu
 // --------------------------------------------------------------------------- //
-function ProfileMenu() {
+function ProfileMenu({ surface }: { surface: string }) {
   const { username, role, logout, hasRole } = useAuth();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -272,7 +272,7 @@ function ProfileMenu() {
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex h-11 items-center gap-2 rounded-full bg-white pl-1 pr-3 shadow-card"
+        className={cn("flex h-11 items-center gap-2 rounded-full pl-1 pr-3", surface)}
         aria-label="Account menu"
       >
         <Initials name={username ?? "?"} className="h-9 w-9 text-xs" />
@@ -308,7 +308,42 @@ function ProfileMenu() {
 // --------------------------------------------------------------------------- //
 // Header
 // --------------------------------------------------------------------------- //
-export function Header({ devices, incidents }: { devices: Device[]; incidents: Incident[] }) {
+/** Search, notifications, profile and the context CTA. `onGlass` swaps solid pills for translucent ones. */
+export function HeaderControls({
+  devices,
+  incidents,
+  onGlass = false,
+}: {
+  devices: Device[];
+  incidents: Incident[];
+  onGlass?: boolean;
+}) {
+  const active = incidents.filter((i) => i.status !== "resolved");
+  const surface = onGlass ? "bg-white/55 ring-1 ring-inset ring-white/70" : "bg-white shadow-card";
+  return (
+    <div className="flex w-full items-center gap-2.5 xl:w-auto">
+      <GlobalSearch devices={devices} incidents={incidents} surface={surface} />
+      <Notifications active={active} surface={surface} />
+      <ProfileMenu surface={surface} />
+      <Link
+        to={active.length ? "/incidents" : "/topology"}
+        className="hidden h-11 shrink-0 items-center rounded-full bg-ink px-5 text-sm font-medium text-white hover:bg-ink-soft 2xl:flex"
+      >
+        {active.length ? `View Active Incidents (${active.length})` : "View Network Topology"}
+      </Link>
+    </div>
+  );
+}
+
+export function Header({
+  devices,
+  incidents,
+  controlsInline = true,
+}: {
+  devices: Device[];
+  incidents: Incident[];
+  controlsInline?: boolean;
+}) {
   const { username } = useAuth();
   const { lastTick } = useLive();
   const active = incidents.filter((i) => i.status !== "resolved");
@@ -342,7 +377,7 @@ export function Header({ devices, incidents }: { devices: Device[]; incidents: I
 
   return (
     <header className="relative z-30 flex flex-col gap-4 px-4 pb-4 pt-5 md:px-8 md:pt-7 xl:flex-row xl:items-center xl:justify-between">
-      <div className="min-w-0">
+      <div className={cn("min-w-0", !controlsInline && "max-w-[calc(100%-46rem)] 2xl:max-w-[calc(100%-56rem)]")}>
         <h1 className="text-2xl font-semibold tracking-tight text-stone-900 md:text-[28px]">
           {greeting()}, {name}!
         </h1>
@@ -356,17 +391,7 @@ export function Header({ devices, incidents }: { devices: Device[]; incidents: I
           <span className="truncate">{summary}</span>
         </p>
       </div>
-      <div className="flex w-full items-center gap-2.5 xl:w-auto">
-        <GlobalSearch devices={devices} incidents={incidents} />
-        <Notifications active={active} />
-        <ProfileMenu />
-        <Link
-          to={active.length ? "/incidents" : "/topology"}
-          className="hidden h-11 shrink-0 items-center rounded-full bg-ink px-5 text-sm font-medium text-white hover:bg-ink-soft 2xl:flex"
-        >
-          {active.length ? `View Active Incidents (${active.length})` : "View Network Topology"}
-        </Link>
-      </div>
+      {controlsInline && <HeaderControls devices={devices} incidents={incidents} />}
     </header>
   );
 }

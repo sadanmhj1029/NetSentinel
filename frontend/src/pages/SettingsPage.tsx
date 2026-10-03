@@ -7,6 +7,7 @@ import { API_BASE_URL } from "../api/client";
 import { CollectorApi } from "../api/endpoints";
 import { useAuth } from "../store/AuthContext";
 import { useLive } from "../store/LiveContext";
+import { glassAvailable, glassEnabledPref, scheduleSnapshotRefresh, setGlassEnabledPref } from "../lib/liquidGlass";
 import type { CollectorHealth } from "../types";
 
 const LIVE_FEED_PREF_KEY = "netsentinel:showLiveFeed";
@@ -37,6 +38,15 @@ export function SettingsPage() {
       return false;
     }
   });
+
+  const [glassOn, setGlassOn] = useState(glassEnabledPref);
+  const canGlass = glassAvailable();
+
+  function setGlass(v: boolean) {
+    setGlassOn(v);
+    setGlassEnabledPref(v);
+    if (v) scheduleSnapshotRefresh(600, true); // the old snapshot may be stale
+  }
 
   useEffect(() => {
     CollectorApi.health().then(setCollector).catch(() => {});
@@ -92,6 +102,17 @@ export function SettingsPage() {
               <div className="text-xs text-stone-500">Shows detections and recoveries as they happen on the dashboard timeline.</div>
             </div>
             <Switch checked={streamDefault} onChange={setStream} />
+          </div>
+          <div className="flex items-center justify-between gap-4 border-t border-stone-100 py-2 pt-3">
+            <div>
+              <div className="text-sm font-medium text-stone-900">Liquid glass effects</div>
+              <div className="text-xs text-stone-500">
+                {canGlass
+                  ? "Real glass on the header bar, health score and phone menu. Turn off on slow computers."
+                  : "Not available in this browser (needs WebGL). A frosted look is used instead."}
+              </div>
+            </div>
+            <Switch checked={canGlass && glassOn} onChange={canGlass ? setGlass : () => {}} />
           </div>
         </Card>
 

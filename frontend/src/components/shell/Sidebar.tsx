@@ -6,6 +6,8 @@ import { useAuth } from "../../store/AuthContext";
 import { useLive } from "../../store/LiveContext";
 import { NAV_GROUPS } from "./nav";
 import type { NavItem } from "./nav";
+import { LiquidGlass } from "../LiquidGlass";
+import { useMediaQuery } from "../../lib/useMediaQuery";
 
 function Initials({ name, className }: { name: string; className?: string }) {
   return (
@@ -42,7 +44,7 @@ function SideLink({ item, incidentCount }: { item: NavItem; incidentCount: numbe
           <Icon
             className={cn(
               "relative h-[19px] w-[19px] transition-colors",
-              isActive ? "text-brand-orange" : "text-stone-500 group-hover:text-stone-900",
+              isActive ? "text-brand-orange" : "text-stone-600 group-hover:text-stone-900",
             )}
             strokeWidth={1.9}
           />
@@ -114,12 +116,18 @@ export function Sidebar({ incidentCount }: { incidentCount: number }) {
 /** Bottom bar for phones, same destinations. */
 export function MobileNav({ incidentCount }: { incidentCount: number }) {
   const { hasRole } = useAuth();
+  const phone = useMediaQuery("(max-width: 767px)");
   const items = NAV_GROUPS.flat().filter((i) => !i.minRole || hasRole(i.minRole));
+  if (!phone) return null; // don't spend a WebGL context on a hidden bar
   return (
-    <nav className="fixed inset-x-3 bottom-3 z-40 flex items-center gap-1 overflow-x-auto rounded-full bg-white p-1.5 shadow-lg shadow-stone-900/10 md:hidden">
-      {items.map((item) => (
-        <SideLink key={item.to} item={item} incidentCount={incidentCount} />
-      ))}
+    <nav className="fixed inset-x-3 bottom-3 z-40" aria-label="Main">
+      <LiquidGlass type="pill" radius={30} tint={0.1} minScrim={0.2} textColor="#57534e" minContrast={3} trackScroll>
+        <div className="flex items-center gap-1 overflow-x-auto p-1.5">
+          {items.map((item) => (
+            <SideLink key={item.to} item={item} incidentCount={incidentCount} />
+          ))}
+        </div>
+      </LiquidGlass>
     </nav>
   );
 }

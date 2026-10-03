@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { motion } from "motion/react";
 import { ArrowUpRight } from "lucide-react";
 import type { CollectorHealth, Device } from "../../types";
+import { LiquidGlass } from "../LiquidGlass";
 
 const STATES = [
   { key: "online", label: "Online", color: "#10b981", bar: "bg-emerald-500", cx: 63, cy: 50, delay: 0 },
@@ -36,7 +37,9 @@ export function HealthCard({ devices, collector }: { devices: Device[] | null; c
     const cy = Math.min(Math.max(st.cy, rH + 1), 99 - rH);
     return { key: st.key, n, r, rH, cx, cy, color: st.color, delay: st.delay, label: st.label.split(" ")[0] };
   });
-  const scoreTone = score == null ? "text-stone-300" : score >= 90 ? "text-emerald-300" : score >= 70 ? "text-amber-300" : "text-red-300";
+  // Colour carries status in a dot next to the number; the number itself stays dark so it's always readable.
+  const scoreDot = score == null ? "bg-stone-400" : score >= 90 ? "bg-emerald-500" : score >= 70 ? "bg-amber-500" : "bg-red-500";
+  const bubbleKey = bubbles.map((b) => `${b.key}${b.n}`).join(",");
 
   return (
     <div className="relative h-full overflow-hidden rounded-[26px] bg-beige p-6 shadow-card">
@@ -99,14 +102,24 @@ export function HealthCard({ devices, collector }: { devices: Device[] | null; c
             </div>
           ))}
 
-          {/* Health score */}
-          <div className="absolute left-[14%] top-[6%] z-20 flex aspect-square w-[27%] flex-col items-center justify-center rounded-full bg-ink text-center shadow-xl shadow-stone-900/30 ring-[6px] ring-ink/15">
-            <span className={`text-2xl font-semibold leading-none tabular-nums md:text-[28px] ${scoreTone}`}>
-              {score ?? "—"}
-            </span>
-            <span className="mt-1 text-[10px] uppercase tracking-wide text-stone-400">
-              {score == null && collector && !collector.is_healthy ? "data stale" : "health score"}
-            </span>
+          {/* Health score on a Liquid Glass lens: the coloured bubbles refract through it. */}
+          <div className="absolute left-[27%] top-[12%] z-20 w-[30%]">
+            <LiquidGlass
+              type="circle"
+              tint={0.1}
+              minScrim={0.2}
+              textColor="#44403c"
+              refreshKey={bubbleKey}
+              className="flex aspect-square w-full flex-col items-center justify-center text-center"
+            >
+              <span className="flex items-center gap-1.5">
+                <span className={`h-2 w-2 rounded-full ${scoreDot}`} />
+                <span className="text-2xl font-semibold leading-none tabular-nums text-ink md:text-[30px]">{score ?? "—"}</span>
+              </span>
+              <span className="mt-1 text-[10px] font-medium uppercase tracking-wide text-stone-700">
+                {score == null && collector && !collector.is_healthy ? "data stale" : "health score"}
+              </span>
+            </LiquidGlass>
           </div>
         </div>
       </div>

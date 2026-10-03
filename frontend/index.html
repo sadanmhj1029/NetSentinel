@@ -5,9 +5,39 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>NetSentinel</title>
+
+    <!-- Liquid Glass JS (MIT, github.com/dashersw/liquid-glass-js), vendored unmodified -->
+    <link rel="stylesheet" href="/vendor/liquid-glass/glass.css" />
   </head>
   <body>
     <div id="root"></div>
+
+    <!--
+      Liquid Glass needs a global `html2canvas`. The README's html2canvas 1.4.1
+      can't parse the oklch() colours Tailwind v4 emits and throws, so no glass
+      ever renders; html2canvas-pro is a drop-in fork that handles them.
+    -->
+    <script src="/vendor/html2canvas-pro/html2canvas-pro.min.js"></script>
+    <script src="/vendor/liquid-glass/container.js"></script>
+    <script src="/vendor/liquid-glass/button.js"></script>
+    <script>
+      // Starting values the shaders read on creation. Tuned live afterwards
+      // via applyGlassSettings() in src/lib/liquidGlass.ts.
+      window.glassControls = {
+        blurRadius: 6,
+        edgeIntensity: 0.026,
+        rimIntensity: 0.025,
+        baseIntensity: 0.01,
+        edgeDistance: 0.15,
+        rimDistance: 0.8,
+        baseDistance: 0.1,
+        cornerBoost: 0.02,
+        rippleEffect: 0.16,
+      };
+      // container.js / button.js declare classes, not window properties: expose them for the React code.
+      window.LiquidGlass = { Container: Container, Button: Button };
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

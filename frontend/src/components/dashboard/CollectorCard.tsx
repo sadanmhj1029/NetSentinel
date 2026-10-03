@@ -13,7 +13,7 @@ function Ring({ pct, healthy }: { pct: number; healthy: boolean }) {
   const color = !healthy ? "#ef4444" : pct >= 99 ? "#10b981" : pct >= 95 ? "#f59e0b" : "#ef4444";
   return (
     <svg viewBox="0 0 112 112" className="h-[112px] w-[112px] shrink-0 -rotate-90">
-      <circle cx="56" cy="56" r={r} fill="none" stroke="#f0ece6" strokeWidth={9} />
+      <circle cx="56" cy="56" r={r} fill="none" stroke="#f4e0d6" strokeWidth={9} />
       {/* tick marks like the reference's dial */}
       {Array.from({ length: 40 }).map((_, i) => (
         <line
@@ -22,7 +22,7 @@ function Ring({ pct, healthy }: { pct: number; healthy: boolean }) {
           y1="4"
           x2="56"
           y2="8"
-          stroke="#e7e1d8"
+          stroke="#f0d1c4"
           strokeWidth={1}
           transform={`rotate(${i * 9} 56 56)`}
         />

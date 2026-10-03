@@ -6,16 +6,16 @@
   --color-brand-orange-dark: #c2663f;
   --color-brand-orange-ink: #a04d2d;
 
-  /* NOC dashboard surfaces */
-  --color-canvas: #e7e3dc; /* outer page */
-  --color-shell: #f6f4f0; /* rounded app frame */
-  --color-beige: #ddd3c5; /* muted feature card */
-  --color-beige-deep: #cbbfae;
-  --color-ink: #1d1d20; /* dark priority cards */
-  --color-ink-soft: #2a2a2e;
-  --color-ink-line: #3a3a40;
+  /* NOC surfaces: every one is cream (#FAF7F2) mixed with warm orange (#D97757). */
+  --color-canvas: #f6e8df; /* outer page: cream + 12% orange */
+  --color-shell: #faf7f2; /* rounded app frame: pure brand cream */
+  --color-beige: #f4e0d6; /* peach feature card: cream + 18% orange */
+  --color-beige-deep: #f0d1c4; /* cream + 30% orange */
+  --color-ink: #301a13; /* dark priority cards: orange at 22% brightness */
+  --color-ink-soft: #41241a;
+  --color-ink-line: #573023;
 
-  --shadow-card: 0 1px 2px rgb(28 25 23 / 0.04), 0 8px 24px -12px rgb(28 25 23 / 0.08);
+  --shadow-card: 0 1px 2px rgb(87 48 35 / 0.05), 0 8px 24px -12px rgb(87 48 35 / 0.12);
 }
 
 :root {
@@ -30,7 +30,7 @@ body,
 
 body {
   margin: 0;
-  background-color: #e7e3dc;
+  background-color: #f6e8df;
   color: #1c1917;
   font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -53,6 +53,12 @@ body {
 
 .react-flow__attribution {
   display: none;
+}
+
+/* Liquid Glass hard-codes `box-shadow: 0 25px 50px rgba(0,0,0,.25)` inline on its
+   canvas; on cream that reads as a muddy grey smudge. A softer, warm shadow instead. */
+.glass-container > canvas {
+  box-shadow: 0 14px 34px -16px rgb(87 48 35 / 0.45) !important;
 }
 
 /* Moving dashes along a link that's under fault (dashboard topology preview). */

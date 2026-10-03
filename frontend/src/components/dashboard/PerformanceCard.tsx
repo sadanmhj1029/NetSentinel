@@ -112,7 +112,7 @@ export function PerformanceCard({ perf }: { perf: PerfPoint[] }) {
                   <stop offset="100%" stopColor="#d97757" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid vertical={false} stroke="#efebe5" />
+              <CartesianGrid vertical={false} stroke="#f3e6dc" />
               <XAxis
                 dataKey="t"
                 tickFormatter={(t: string) => timeOf(t).slice(0, 5)}

@@ -17,7 +17,7 @@ function Gauge({ value }: { value: number | null }) {
   const color = value == null ? "#d6d3d1" : v >= 50 ? "#ef4444" : v >= 35 ? "#f59e0b" : "#10b981";
   return (
     <svg viewBox="0 0 180 104" className="w-full max-w-[200px]">
-      <path d="M20,92 A70,70 0 0 1 160,92" fill="none" stroke="#f0ece6" strokeWidth={14} strokeLinecap="round" />
+      <path d="M20,92 A70,70 0 0 1 160,92" fill="none" stroke="#f4e0d6" strokeWidth={14} strokeLinecap="round" />
       <motion.path
         d="M20,92 A70,70 0 0 1 160,92"
         fill="none"
