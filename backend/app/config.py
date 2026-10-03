@@ -29,6 +29,15 @@ class Settings(BaseSettings):
     # Monitoring / collector
     poll_interval_seconds: float = 2.0
     collector_stale_after_seconds: float = 10.0
+    # "simulated": every device is simulator-driven, regardless of its own
+    #   monitoring_method -- today's default, zero behavior change.
+    # "hybrid": devices with monitoring_method="icmp" are really pinged;
+    #   everything else (still "simulated", or "snmp"/"rest" which aren't
+    #   built yet) falls back to the simulator so the demo keeps working.
+    # "live": same real-polling rule for "icmp" devices, but nothing else
+    #   falls back to the simulator -- a device with no working real
+    #   monitoring method configured just goes stale instead of faking data.
+    polling_mode: str = "simulated"  # "simulated" | "hybrid" | "live"
 
     # Rule-detection thresholds (defaults; also configurable per-device via the API)
     rule_consecutive_fails: int = 3
@@ -57,6 +66,15 @@ class Settings(BaseSettings):
     # Notifications
     notify_webhook_url: str = ""
     notify_email_enabled: bool = False
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = "netsentinel@companya.com"
+    smtp_to: str = ""
+    smtp_use_tls: bool = True  # True = STARTTLS (typically port 587); False = plain SMTP, no encryption
+    # Reserved for a future Telegram sender -- not implemented yet, see
+    # docs/ARCHITECTURE.md. Setting these does nothing today.
     notify_telegram_bot_token: str = ""
     notify_telegram_chat_id: str = ""
 

@@ -21,6 +21,11 @@ Diagnose → Alert → Recover → Report.**
   **Fault Injection Lab** to trigger switch failure, high latency,
   packet-loss bursts, bandwidth saturation, or a collector outage on
   demand.
+- **Real ICMP polling**, optionally, alongside the simulator: set a
+  device's `monitoring_method` to `icmp` (Devices page or `PATCH
+  /devices/{id}`) and `POLLING_MODE=hybrid` or `live`, and that device
+  is really pinged for reachability, latency and packet loss instead of
+  simulated. CPU/memory/bandwidth still need SNMP, which isn't built.
 - **Detection**: fixed-threshold rules with hysteresis (no flapping on a
   single noisy poll), adaptive per-device baselines (robust
   median/MAD statistics, not fixed numbers), and an Isolation Forest
@@ -37,6 +42,9 @@ Diagnose → Alert → Recover → Report.**
 - **Role-based access** (viewer / operator / admin), a full audit log,
   and live evaluation metrics (MTTD/MTTA/MTTR, root-cause accuracy,
   false-positive rate) computed from real incident history.
+- **Alerting**: console log (always on), a generic Slack-compatible
+  webhook, and real SMTP email, all independent of each other so one
+  misconfigured channel never blocks the others.
 
 | Topology view | Incident root-cause analysis |
 |---|---|
@@ -93,8 +101,9 @@ This is built to an explicit "essential prototype" scope: the full
 pipeline above, working end-to-end and verified (automated tests +
 real browser walkthroughs, not just assumed to work), rather than a
 shallower pass across every item in the original spec. Auth, RBAC,
-Docker, notifications and audit logging are all in; a few
-longer-roadmap items from the original spec (SNMP/ICMP polling of real
-hardware, a real model registry, multi-tenant scale) are intentionally
-out of scope for now -- see `docs/ARCHITECTURE.md` for exactly what and
-why.
+Docker, notifications (console/webhook/email) and audit logging are all
+in, and real ICMP polling is available per-device alongside the
+simulator; a few longer-roadmap items from the original spec (SNMP
+polling for CPU/memory/bandwidth on real hardware, a real model
+registry, multi-tenant scale) are intentionally out of scope for now --
+see `docs/ARCHITECTURE.md` for exactly what and why.
