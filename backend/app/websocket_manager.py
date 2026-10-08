@@ -23,6 +23,10 @@ class ConnectionManager:
         async with self._lock:
             self._connections.discard(ws)
 
+    @property
+    def client_count(self) -> int:
+        return len(self._connections)
+
     async def broadcast(self, message: dict) -> None:
         if not self._connections:
             return

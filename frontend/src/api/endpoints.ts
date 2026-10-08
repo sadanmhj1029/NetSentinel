@@ -4,6 +4,7 @@ import type {
   CollectorHealth,
   Device,
   Incident,
+  MaintenanceWindow,
   MetricSample,
   MlStatus,
   PriorityResult,
@@ -11,6 +12,7 @@ import type {
   Role,
   Scenario,
   SimulatorState,
+  SystemStatus,
   TopologyLink,
   TopologyResponse,
   User,
@@ -127,4 +129,16 @@ export const AuditApi = {
 export const UsersApi = {
   list: () => api.get<User[]>("/api/users"),
   create: (body: { username: string; password: string; role: Role }) => api.post<User>("/api/users", body),
+};
+
+export const MaintenanceApi = {
+  active: () => api.get<MaintenanceWindow[]>("/api/maintenance"),
+  history: (limit = 50) => api.get<MaintenanceWindow[]>(`/api/maintenance/history?limit=${limit}`),
+  start: (body: { device_id: string; duration_minutes: number; reason: string }) =>
+    api.post<MaintenanceWindow>("/api/maintenance", body),
+  end: (id: number) => api.post<MaintenanceWindow>(`/api/maintenance/${id}/end`),
+};
+
+export const SystemApi = {
+  status: () => api.get<SystemStatus>("/api/system/status"),
 };

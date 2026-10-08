@@ -83,6 +83,15 @@ class Settings(BaseSettings):
     demo_operator_password: str = "operator123"
     demo_viewer_password: str = "viewer123"
 
+    # Reliability
+    db_connect_retries: int = 30  # on startup, wait up to ~60s for the database
+    db_connect_retry_seconds: float = 2.0
+    metric_retention_hours: float = 72.0  # raw metric samples older than this are pruned
+    retention_check_minutes: float = 10.0
+    login_max_attempts: int = 5  # failed logins (per user + address) before a lockout
+    login_window_seconds: int = 300
+    login_lockout_seconds: int = 300
+
     # CORS
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 

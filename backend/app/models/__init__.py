@@ -6,6 +6,7 @@ from app.models.event import Event
 from app.models.incident import Incident
 from app.models.audit import AuditLog
 from app.models.user import User
+from app.models.maintenance import MaintenanceWindow
 
 __all__ = [
     "Device",
@@ -16,4 +17,5 @@ __all__ = [
     "Incident",
     "AuditLog",
     "User",
+    "MaintenanceWindow",
 ]

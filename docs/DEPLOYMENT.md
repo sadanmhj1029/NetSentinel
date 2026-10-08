@@ -5,6 +5,32 @@ native local processes (useful if Docker Hub isn't reachable from your
 network, or you just prefer it). Both end up with the same three things
 running: Postgres, the FastAPI backend, the React frontend.
 
+## One-click helper
+
+`NetSentinel.bat` (Windows, double-click for a menu) and
+`scripts/netsentinel.sh` (macOS/Linux) wrap the Docker commands you'd
+otherwise type by hand:
+
+| Command | What it does |
+|---|---|
+| `start` | Creates `.env` if missing, builds and starts all containers, waits for `/api/health/ready`, opens the browser |
+| `stop` | `docker compose down`. Data is kept (it never passes `-v`) |
+| `update` | Takes a backup, refuses to continue if you have local code changes, `git pull --ff-only`, rebuilds, restarts, waits until healthy |
+| `status` | Container list plus the readiness check |
+| `logs` | Follows the backend log |
+| `backup` | `pg_dump` inside the db container, copied to `backups/netsentinel-<date>.dump`; keeps the newest 10 |
+| `restore [file]` | Restores the newest backup (or the file given) after you type `YES`; stops the backend while it runs |
+| `open` | Opens http://localhost:5173 |
+
+On Windows: `NetSentinel.bat start`, `NetSentinel.bat update`, and so on,
+from PowerShell or Command Prompt in the project folder. It runs the
+PowerShell script with `-ExecutionPolicy Bypass`, so no policy changes
+are needed.
+
+The frontend's nginx sends `index.html` with `Cache-Control: no-cache`
+(the hashed JS/CSS files are cached forever), so after an update the
+browser picks up the new version on a normal reload.
+
 ## Option A: Docker Compose
 
 Requirements: Docker + Docker Compose.
@@ -34,7 +60,16 @@ Once it's up:
 | Demo accounts | `admin` / `admin123`, `operator` / `operator123`, `viewer` / `viewer123` |
 
 To stop: `docker compose down` (add `-v` to also drop the Postgres
-volume and start completely fresh next time).
+volume and start completely fresh next time; that deletes all data).
+
+Health and resilience built into the compose setup:
+
+- The backend's Docker healthcheck calls `GET /api/health/ready`, which
+  passes only when the database answers **and** the monitoring loop has
+  ticked recently. With `restart: unless-stopped`, Docker restarts a
+  backend that stays unhealthy.
+- The frontend waits for the backend to be healthy before starting.
+- Every container's log is capped at 3 x 10 MB.
 
 A note on `VITE_API_BASE_URL` / `VITE_WS_BASE_URL`: Vite bakes these into
 the built JS bundle at **build** time, not at container start, because
@@ -128,12 +163,34 @@ running backend (login, every page, triggering a fault, watching an
 incident get created/diagnosed/resolved) -- see `docs/DEMO.md` for that
 exact sequence.
 
+## Health, status and backups
+
+| Endpoint | Auth | Use |
+|---|---|---|
+| `GET /health`, `GET /api/health` | none | Liveness: the process is up |
+| `GET /api/health/ready` | none | Readiness: database reachable and monitoring loop ticking; `503` otherwise |
+| `GET /api/system/status` | any user | Everything above plus pipeline stats, row counts, retention and lockout settings (shown in Settings → System status) |
+
+Backups are plain `pg_dump -Fc` files, so they also restore with any
+Postgres tools: `pg_restore --clean --if-exists --no-owner -d netsentinel <file>`.
+
+New reliability settings (all optional, see `.env.example`):
+`METRIC_RETENTION_HOURS` (default 72, `0` keeps everything),
+`LOGIN_MAX_ATTEMPTS` (5), `LOGIN_LOCKOUT_SECONDS` (300).
+
 ## Troubleshooting
 
-- **Backend can't reach Postgres on startup** -- with Docker Compose,
-  the backend `depends_on` the db's healthcheck, so this should only
-  happen if Postgres is still initializing on a very slow first start;
-  it'll retry. Natively, make sure `pg_isready` succeeds and
+- **"Lost connection to the NetSentinel server" banner** -- the browser
+  can't reach the backend. Run `NetSentinel.bat status`; if the backend
+  isn't ready, `NetSentinel.bat logs` shows why. The page reconnects on
+  its own once the backend is back.
+- **"Too many failed attempts" on login** -- five wrong passwords lock
+  that account for 5 minutes from that computer. Wait it out, or restart
+  the backend to clear all lockouts.
+
+- **Backend can't reach Postgres on startup** -- the backend now waits
+  for the database (up to ~60s, `DB_CONNECT_RETRIES` x
+  `DB_CONNECT_RETRY_SECONDS`) before giving up, logging each attempt. Natively, make sure `pg_isready` succeeds and
   `DATABASE_URL` matches a role/database that actually exists (rerun
   `scripts/dev-setup.sh`, which is idempotent).
 - **Dashboard looks empty / baseline says "not enough history"** -- the

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { LogOut, ScrollText, Users } from "lucide-react";
+import { Bell, Keyboard, LogOut, ScrollText, Users, Volume2 } from "lucide-react";
 import { Card, Switch } from "../components/Card";
 import { Initials } from "../components/shell/Sidebar";
 import { API_BASE_URL } from "../api/client";
@@ -9,6 +9,16 @@ import { useAuth } from "../store/AuthContext";
 import { useLive } from "../store/LiveContext";
 import { glassAvailable, glassEnabledPref, scheduleSnapshotRefresh, setGlassEnabledPref } from "../lib/liquidGlass";
 import type { CollectorHealth } from "../types";
+import { SystemStatusCard } from "../components/settings/SystemStatusCard";
+import {
+  alertNewIncidents,
+  desktopPermission,
+  desktopSupported,
+  getAlertPrefs,
+  playChime,
+  requestDesktopPermission,
+  setAlertPrefs,
+} from "../lib/alerts";
 
 const LIVE_FEED_PREF_KEY = "netsentinel:showLiveFeed";
 
@@ -46,6 +56,26 @@ export function SettingsPage() {
     setGlassOn(v);
     setGlassEnabledPref(v);
     if (v) scheduleSnapshotRefresh(600, true); // the old snapshot may be stale
+  }
+
+  const [alerts, setAlerts] = useState(getAlertPrefs);
+  const [permission, setPermission] = useState(desktopPermission);
+
+  async function setDesktop(on: boolean) {
+    if (on) {
+      const p = await requestDesktopPermission();
+      setPermission(p);
+      if (p !== "granted") return; // browser said no; leave the switch off
+    }
+    const next = { ...alerts, desktop: on };
+    setAlerts(next);
+    setAlertPrefs(next);
+  }
+  function setSound(on: boolean) {
+    const next = { ...alerts, sound: on };
+    setAlerts(next);
+    setAlertPrefs(next);
+    if (on) playChime();
   }
 
   useEffect(() => {
@@ -114,7 +144,58 @@ export function SettingsPage() {
             </div>
             <Switch checked={canGlass && glassOn} onChange={canGlass ? setGlass : () => {}} />
           </div>
+          <div className="mt-2 flex items-start gap-3 rounded-2xl bg-stone-50 p-3 text-xs text-stone-600">
+            <Keyboard className="mt-0.5 h-4 w-4 shrink-0 text-stone-500" />
+            <span>
+              Keyboard shortcuts: press <kbd className="rounded border border-stone-300 bg-white px-1 font-mono">?</kbd> anywhere for the list,{" "}
+              <kbd className="rounded border border-stone-300 bg-white px-1 font-mono">/</kbd> to search, and{" "}
+              <kbd className="rounded border border-stone-300 bg-white px-1 font-mono">g</kbd> then a letter to jump between pages.
+            </span>
+          </div>
         </Card>
+
+        <Card title="Alerts" subtitle="Get told about new incidents even when this tab isn't in front">
+          <div className="flex items-center justify-between gap-4 py-2">
+            <div className="flex items-start gap-3">
+              <Bell className="mt-0.5 h-4 w-4 shrink-0 text-stone-500" />
+              <div>
+                <div className="text-sm font-medium text-stone-900">Desktop notifications</div>
+                <div className="text-xs text-stone-500">
+                  {!desktopSupported()
+                    ? "This browser doesn't support notifications."
+                    : permission === "denied"
+                      ? "Blocked in your browser. Allow notifications for this site in the address bar, then try again."
+                      : "A pop-up for every new incident. Click it to open the incident."}
+                </div>
+              </div>
+            </div>
+            <Switch checked={alerts.desktop && permission === "granted"} onChange={setDesktop} />
+          </div>
+          <div className="flex items-center justify-between gap-4 border-t border-stone-100 py-2 pt-3">
+            <div className="flex items-start gap-3">
+              <Volume2 className="mt-0.5 h-4 w-4 shrink-0 text-stone-500" />
+              <div>
+                <div className="text-sm font-medium text-stone-900">Sound</div>
+                <div className="text-xs text-stone-500">A short chime for new incidents, a sharper one for critical ones.</div>
+              </div>
+            </div>
+            <Switch checked={alerts.sound} onChange={setSound} />
+          </div>
+          <button
+            onClick={() =>
+              alertNewIncidents([{ incident_id: "TEST-0000", title: "Test alert from NetSentinel", severity: "critical", root_cause: "Switch-02" }])
+            }
+            disabled={!alerts.desktop && !alerts.sound}
+            className="mt-3 rounded-full border border-stone-200 px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:opacity-40"
+          >
+            Send a test alert
+          </button>
+          <p className="mt-3 text-xs text-stone-500">
+            The tab title also shows a count, like “(2) NetSentinel”, when incidents arrive while you're on another tab.
+          </p>
+        </Card>
+
+        <SystemStatusCard />
 
         <Card title="Connection">
           <dl className="divide-y divide-stone-100 text-sm">

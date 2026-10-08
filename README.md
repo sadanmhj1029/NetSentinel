@@ -46,11 +46,55 @@ Diagnose → Alert → Recover → Report.**
   webhook, and real SMTP email, all independent of each other so one
   misconfigured channel never blocks the others.
 
+### Reliability and day-to-day use
+
+- **Planned maintenance mode**: put a device into maintenance for 15 min
+  to 4 h before working on it. Its faults (and those of devices behind
+  it) are still recorded but don't open incidents, alerts or
+  fix-priority entries. If the fault is still there when the window
+  ends, an incident opens normally.
+- **Health checks**: `GET /api/health/ready` checks the database and that
+  the monitoring loop is actually ticking. Docker uses it to restart a
+  stuck backend, and the frontend waits for it before starting.
+- **Self-healing pipeline**: the backend waits for the database on startup
+  instead of crashing, backs off while the database is unavailable, and
+  logs one line per repeat failure instead of a traceback flood.
+- **Data retention**: raw metric samples older than 72 h (configurable)
+  are pruned automatically so the database doesn't grow forever.
+  Incidents, events and the audit log are kept.
+- **Login lockout**: 5 wrong passwords for an account lock it for 5
+  minutes from that address, with a warning before the last attempts.
+- **Connection banner**: if the browser loses the server it says so,
+  shows how long data has been stale, retries with backoff, and confirms
+  when it's back. A broken page shows a "Try again" card instead of a
+  blank screen.
+- **Alerts**: optional desktop notifications and a sound for new
+  incidents, plus an unread count in the tab title.
+- **Faster to work with**: search and status filters on Devices,
+  Incidents and Audit, CSV export of all three, keyboard shortcuts
+  (`?` for the list, `g` then a letter to jump), a System status card
+  in Settings, show-password and Caps Lock warning on login, and a
+  "session expired" message instead of a silent logout.
+- **Backups**: one command dumps the database to `backups/` (the last 10
+  are kept), and Update takes a backup automatically before changing
+  anything.
+
 | Topology view | Incident root-cause analysis |
 |---|---|
 | ![Topology](docs/screenshots/topology.png) | ![Incident detail](docs/screenshots/incident_detail.png) |
 
 ## Quick start
+
+**Windows (easiest):** open Docker Desktop, then double-click
+**`NetSentinel.bat`** in the project folder and pick **1 Start**. It
+creates `.env` if needed, builds and starts everything, waits until the
+backend is healthy, and opens the browser. The same menu also has Stop,
+Update, Status, Logs, Backup and Restore (details in
+[`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md#one-click-helper)).
+
+**macOS / Linux:** `./scripts/netsentinel.sh start` (same commands).
+
+**By hand, anywhere:**
 
 ```bash
 cp .env.example .env
@@ -79,7 +123,9 @@ backend/    FastAPI app: simulator, collector, detection, ML, correlation,
 frontend/   React + TypeScript SPA
 docker/     (see docker-compose.yml at repo root + each app's Dockerfile)
 docs/       Architecture, deployment, and demo-script documentation
-scripts/    Local dev setup / reset / test-runner convenience scripts
+scripts/    netsentinel.sh (start/stop/update/backup...), windows/netsentinel.ps1,
+            plus local dev setup / reset / test-runner scripts
+NetSentinel.bat   Double-click menu for Windows
 ```
 
 ## Documentation

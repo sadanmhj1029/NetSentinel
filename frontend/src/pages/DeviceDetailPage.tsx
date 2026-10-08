@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis, CartesianGrid } from "recharts";
 import { Card, StatTile, Button } from "../components/Card";
 import { StatusBadge } from "../components/Badges";
+import { MaintenanceBadge, MaintenancePanel } from "../components/system/Maintenance";
 import { DevicesApi } from "../api/endpoints";
 import { useAuth } from "../store/AuthContext";
 import { useLive } from "../store/LiveContext";
@@ -88,7 +89,7 @@ export function DeviceDetailPage() {
         <Link to="/devices" className="text-xs text-stone-500 hover:text-stone-700">
           ← Back to devices
         </Link>
-        <div className="mt-2 flex items-center justify-between">
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-xl font-semibold text-stone-900">{device.device_id}</h1>
             <p className="text-sm text-stone-500">
@@ -97,6 +98,7 @@ export function DeviceDetailPage() {
           </div>
           <div className="flex items-center gap-2">
             <StatusBadge status={device.status} />
+            <MaintenanceBadge deviceId={device.device_id} />
             {hasRole("admin") && device.is_active && (
               <Button variant="danger" onClick={handleDeactivate} disabled={busy}>
                 Deactivate
@@ -105,6 +107,8 @@ export function DeviceDetailPage() {
           </div>
         </div>
       </div>
+
+      <MaintenancePanel deviceId={device.device_id} />
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatTile label="Latency" value={latest?.latency_ms != null ? `${latest.latency_ms.toFixed(1)} ms` : "—"} />

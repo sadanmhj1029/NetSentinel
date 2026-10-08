@@ -96,7 +96,7 @@ function PriorityRow({ item }: { item: PriorityItem }) {
           <span className="rounded-full bg-white px-2 py-0.5 text-[11px] font-medium text-stone-600 ring-1 ring-inset ring-stone-200">
             {item.problem.title}
           </span>
-          {item.problem.also_seen.map((s) => (
+          {[...new Set(item.problem.also_seen)].filter((s) => s !== item.problem.title).map((s) => (
             <span key={s} className="text-[11px] text-stone-400">
               + {s}
             </span>
@@ -195,6 +195,13 @@ export function FixPriority({ data }: { data: PriorityResult }) {
           <span className="font-medium text-stone-700">Knock-on effects, no separate fix needed: </span>
           {knockOn.map((r) => r.device_id).join(", ")}. These should recover once {causes.join(" and ")}{" "}
           {causes.length === 1 ? "is" : "are"} fixed.
+        </div>
+      )}
+
+      {data.in_maintenance && data.in_maintenance.length > 0 && (
+        <div className="mt-3 rounded-lg bg-sky-50 px-3 py-2 text-xs text-sky-900 ring-1 ring-inset ring-sky-200">
+          <span className="font-medium">Left out for planned maintenance: </span>
+          {data.in_maintenance.join(", ")}.
         </div>
       )}
 

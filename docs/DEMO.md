@@ -111,3 +111,20 @@ requirement from the spec:
 - **Everything is audited.** Every write made during this whole demo
   (scenario starts/stops, acknowledgements, device changes) is on the
   **Audit Log** page (admin only), with who did it and when.
+- **Planned maintenance.** Open **Switch-02**, click **Start
+  maintenance**, pick 30 minutes and a reason. Now start the **Switch
+  failure** scenario on Switch-02: the devices go offline, but no
+  incident opens, Fix Priority lists them under "Left out for planned
+  maintenance", and the header says "4 in planned maintenance". Click
+  **End now** while the fault is still active and an incident opens
+  within a couple of seconds. Covered by
+  `tests/test_reliability.py`.
+- **Resilience.** Stop the backend (`docker compose stop backend`): a
+  banner says the connection is lost and how long data has been stale.
+  Start it again and it says "Back online" by itself. Settings → System
+  status shows the database latency, how long each monitoring cycle
+  takes and how many have run.
+- **Lockout.** On the login page, enter a wrong password for `operator`
+  five times: it warns at 2 and 1 attempts left, then locks for 5
+  minutes.
+

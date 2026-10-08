@@ -345,12 +345,18 @@ export function Header({
   controlsInline?: boolean;
 }) {
   const { username } = useAuth();
-  const { lastTick } = useLive();
+  const { lastTick, maintenanceCover } = useLive();
   const active = incidents.filter((i) => i.status !== "resolved");
   const collectorDown = lastTick?.type === "tick" && lastTick.collector_healthy === false;
 
+  // Devices under planned maintenance are expected to misbehave; count them apart.
   const counts = { online: 0, degraded: 0, offline: 0, unknown: 0 };
-  for (const d of devices) counts[d.status]++;
+  let inMaintenance = 0;
+  for (const d of devices) {
+    if (maintenanceCover[d.device_id]) inMaintenance++;
+    else counts[d.status]++;
+  }
+  const maintNote = inMaintenance ? ` · ${inMaintenance} in planned maintenance` : "";
   const rootCause = active.find((i) => i.probable_root_cause_device_id)?.probable_root_cause_device_id;
 
   let tone: "good" | "warn" | "bad" = "good";
@@ -363,14 +369,16 @@ export function Header({
     const parts = [`${active.length} active incident${active.length > 1 ? "s" : ""}`];
     if (counts.offline) parts.push(`${counts.offline} offline`);
     if (counts.degraded) parts.push(`${counts.degraded} degraded`);
-    summary = parts.join(" · ") + (rootCause ? ` · probable root cause ${rootCause}` : "");
+    summary = parts.join(" · ") + (rootCause ? ` · probable root cause ${rootCause}` : "") + maintNote;
   } else if (counts.degraded || counts.offline) {
     tone = "warn";
-    summary = `${counts.offline} offline, ${counts.degraded} degraded. Waiting for confirmation before raising an incident.`;
+    summary = `${counts.offline} offline, ${counts.degraded} degraded. Waiting for confirmation before raising an incident.${maintNote}`;
   } else {
-    summary = devices.length
-      ? `All ${devices.length} devices healthy · collector polling normally`
-      : "Loading network status…";
+    summary = !devices.length
+      ? "Loading network status…"
+      : inMaintenance
+        ? `${devices.length - inMaintenance} devices healthy · ${inMaintenance} in planned maintenance`
+        : `All ${devices.length} devices healthy · collector polling normally`;
   }
 
   const name = username ? username.charAt(0).toUpperCase() + username.slice(1) : "";
@@ -388,7 +396,7 @@ export function Header({
               tone === "good" ? "bg-emerald-500" : tone === "warn" ? "bg-amber-500" : "animate-pulse bg-red-500",
             )}
           />
-          <span className="truncate">{summary}</span>
+          <span className="truncate" title={summary}>{summary}</span>
         </p>
       </div>
       {controlsInline && <HeaderControls devices={devices} incidents={incidents} />}

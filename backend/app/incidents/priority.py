@@ -29,6 +29,7 @@ from app.models.event import Event
 from app.models.incident import Incident
 from app.models.interface import Interface
 from app.models.metric import MetricSample
+from app.services.maintenance import suppressed_devices
 from app.utils import utcnow
 
 WEIGHTS = {"impact": 35.0, "workload": 25.0, "severity": 25.0, "role": 15.0}
@@ -236,7 +237,18 @@ def _why_first(top: _Candidate, runner_up: _Candidate) -> str:
 # Main entry point
 # --------------------------------------------------------------------------- #
 def compute_priorities(db: Session, collector_healthy: bool = True, now: dt.datetime | None = None) -> dict:
+    """Devices under planned maintenance (and those behind them) are left out
+    of the ranking and listed separately under `in_maintenance`."""
     now = now or utcnow()
+    covered = suppressed_devices(db, load_graph(db), now)
+    result = _compute_priorities(db, collector_healthy, now, set(covered))
+    result["in_maintenance"] = sorted(covered)
+    if not result["ranked"] and covered and result.get("collector_healthy"):
+        result["headline"] = "No faulty devices outside planned maintenance."
+    return result
+
+
+def _compute_priorities(db: Session, collector_healthy: bool, now: dt.datetime, skip: set[str]) -> dict:
     if not collector_healthy:
         return {
             "generated_at": now.isoformat(),
@@ -251,7 +263,7 @@ def compute_priorities(db: Session, collector_healthy: bool = True, now: dt.date
     open_events = db.query(Event).filter(Event.status == "open").all()
     events_by_device: dict[str, list[Event]] = {}
     for e in open_events:
-        if e.device_id in devices:
+        if e.device_id in devices and e.device_id not in skip:
             events_by_device.setdefault(e.device_id, []).append(e)
 
     if not events_by_device:
@@ -346,7 +358,11 @@ def compute_priorities(db: Session, collector_healthy: bool = True, now: dt.date
                     "type": c.primary.event_type,
                     "title": EVENT_LABELS.get(c.primary.event_type, c.primary.event_type),
                     "summary": _describe(c.primary, c.device.device_id, c.latest, now),
-                    "also_seen": [EVENT_LABELS.get(e.event_type, e.event_type) for e in others],
+                    # Unique labels, minus the main one (two open events can share a label).
+                    "also_seen": list(dict.fromkeys(
+                        label for label in (EVENT_LABELS.get(e.event_type, e.event_type) for e in others)
+                        if label != EVENT_LABELS.get(c.primary.event_type, c.primary.event_type)
+                    )),
                     "since": since.isoformat(),
                 },
                 "impact": {

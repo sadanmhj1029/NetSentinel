@@ -21,8 +21,11 @@ COPY . .
 
 EXPOSE 8000
 
-HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=5 \
-    CMD curl -fsS http://localhost:8000/health || exit 1
+# Readiness, not just "process is up": the database answers and the
+# monitoring loop is ticking. Docker restarts the container if this keeps failing
+# (restart: unless-stopped) and the frontend waits for it before starting.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=6 \
+    CMD curl -fsS http://localhost:8000/api/health/ready || exit 1
 
 # Single worker: the scheduler's background tick loop and the
 # process-wide singletons (simulator/collector/rule engine/baseline

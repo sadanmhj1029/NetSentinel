@@ -134,6 +134,22 @@ background loop does, in order:
    (`app/websocket_manager.py`) so the dashboard updates live without
    polling.
 
+**Planned maintenance** (`app/services/maintenance.py`,
+`app/models/maintenance.py`): before clustering, step 3 drops events from
+devices covered by an active maintenance window (the device itself and
+everything downstream of it in the topology), unless the device is
+already part of an open incident, so starting maintenance mid-incident
+can't make that incident look recovered. The fix-priority ranking skips
+the same devices and lists them under `in_maintenance`.
+
+**Heartbeat and retention** (`app/services/heartbeat.py`,
+`app/services/retention.py`): every tick records its time and duration,
+or its error. Repeated failures back off (2s, 4s, 8s ... up to 30s) and
+log one line each instead of a full traceback. Every 10 minutes the tick
+also deletes metric samples older than `metric_retention_hours`, in
+batches of 5,000. `/api/health/ready` fails if the database doesn't
+answer or there has been no successful tick for 5 intervals.
+
 Every write through the API (device/topology changes, scenario
 start/stop, incident actions, ML training, user management) is also
 recorded to the `audit_logs` table (`app/services/audit.py`).

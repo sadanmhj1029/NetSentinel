@@ -7,6 +7,9 @@ import { useMediaQuery } from "../lib/useMediaQuery";
 import { Header, HeaderControls } from "./shell/Header";
 import { MobileNav, Sidebar } from "./shell/Sidebar";
 import { LiquidGlass } from "./LiquidGlass";
+import { ConnectionBanner } from "./system/ConnectionBanner";
+import { ErrorBoundary } from "./system/ErrorBoundary";
+import { Shortcuts } from "./system/Shortcuts";
 import type { Device, Incident } from "../types";
 
 const SAFETY_REFRESH_MS = 60_000;
@@ -62,6 +65,8 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-canvas md:p-4">
+      <ConnectionBanner />
+      <Shortcuts />
       <div className="flex min-h-screen bg-shell md:min-h-[calc(100vh-2rem)] md:rounded-[32px] md:shadow-[0_30px_80px_-40px_rgb(87_48_35/0.28)]">
         <Sidebar incidentCount={activeCount} />
         <div className="relative flex min-w-0 flex-1 flex-col md:border-l md:border-stone-200/60">
@@ -78,7 +83,9 @@ export function Layout() {
           )}
           <Header devices={devices} incidents={incidents} controlsInline={!wide} />
           <main className="flex-1 px-4 pb-28 md:px-8 md:pb-8">
-            <Outlet />
+            <ErrorBoundary resetKey={pathname}>
+              <Outlet />
+            </ErrorBoundary>
           </main>
         </div>
       </div>

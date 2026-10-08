@@ -12,5 +12,6 @@ router = APIRouter(prefix="/api/audit-logs", tags=["audit"])
 
 @router.get("")
 def list_audit_logs(limit: int = 200, db: Session = Depends(get_db), _user=Depends(require_role("admin"))):
+    limit = min(max(limit, 1), 5000)
     logs = db.query(AuditLog).order_by(AuditLog.timestamp.desc()).limit(limit).all()
     return [log.to_dict() for log in logs]

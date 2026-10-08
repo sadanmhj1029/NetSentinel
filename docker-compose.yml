@@ -3,10 +3,18 @@
 # correlation, incident engine, scheduler, WebSocket) + the React
 # frontend, wired together. See docs/DEPLOYMENT.md for details,
 # troubleshooting, and the non-Docker local-dev alternative.
+# Keeps each container's logs from slowly filling the disk.
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   db:
     image: postgres:16-alpine
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-netsentinel}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-netsentinel}
@@ -25,6 +33,7 @@ services:
     build:
       context: ./backend
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       db:
         condition: service_healthy
@@ -56,6 +65,9 @@ services:
       DEMO_OPERATOR_PASSWORD: ${DEMO_OPERATOR_PASSWORD:-operator123}
       DEMO_VIEWER_PASSWORD: ${DEMO_VIEWER_PASSWORD:-viewer123}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+      METRIC_RETENTION_HOURS: ${METRIC_RETENTION_HOURS:-72}
+      LOGIN_MAX_ATTEMPTS: ${LOGIN_MAX_ATTEMPTS:-5}
+      LOGIN_LOCKOUT_SECONDS: ${LOGIN_LOCKOUT_SECONDS:-300}
     ports:
       - "8000:8000"
     volumes:
@@ -68,8 +80,12 @@ services:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000}
         VITE_WS_BASE_URL: ${VITE_WS_BASE_URL:-ws://localhost:8000}
     restart: unless-stopped
+    logging: *default-logging
+    # Wait until the API answers its readiness check, so the page never
+    # opens onto "can't reach the server" on a fresh start.
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "5173:80"
 

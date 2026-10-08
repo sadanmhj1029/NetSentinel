@@ -39,9 +39,14 @@ def _reset_module_singletons():
     next test via a shared device id like "Switch-02"."""
     from app.detection.baseline import baseline_store
     from app.detection.rules import rule_engine
+    from app.services.heartbeat import heartbeat
+    from app.services.login_guard import login_guard
 
     rule_engine._state.clear()
     baseline_store._baselines.clear()
+    login_guard.clear()
+    heartbeat.reset()
     yield
     rule_engine._state.clear()
     baseline_store._baselines.clear()
+    login_guard.clear()

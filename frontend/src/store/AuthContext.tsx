@@ -59,7 +59,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setUnauthorizedHandler(() => logout());
+    setUnauthorizedHandler(() => {
+      // Tell the login page why the user landed there.
+      try {
+        if (localStorage.getItem(STORAGE_KEY)) sessionStorage.setItem("netsentinel:sessionExpired", "1");
+      } catch {
+        /* ignore */
+      }
+      logout();
+    });
     return () => setUnauthorizedHandler(null);
   }, [logout]);
 

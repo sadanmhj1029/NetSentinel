@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Download } from "lucide-react";
 import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { Card, Button } from "../components/Card";
@@ -7,6 +8,9 @@ import { DevicesApi } from "../api/endpoints";
 import { useAuth } from "../store/AuthContext";
 import { useLive } from "../store/LiveContext";
 import { ApiError } from "../api/client";
+import { MaintenanceBadge } from "../components/system/Maintenance";
+import { FilterBar } from "../components/FilterBar";
+import { downloadCsv, stamp, toCsv } from "../lib/csv";
 import type { Device } from "../types";
 
 const DEVICE_TYPES = ["router", "switch", "server", "pc", "service"];
@@ -18,7 +22,33 @@ export function DevicesPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { hasRole } = useAuth();
-  const { tickVersion } = useLive();
+  const { tickVersion, maintenanceCover } = useLive();
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return (devices ?? []).filter(
+      (d) =>
+        (statusFilter === "all" || d.status === statusFilter) &&
+        (!q || [d.device_id, d.hostname, d.ip_address, d.device_type, d.site].some((v) => v?.toLowerCase().includes(q)))
+    );
+  }, [devices, query, statusFilter]);
+
+  function exportCsv() {
+    const csv = toCsv(visible, [
+      { header: "Device", value: (d) => d.device_id },
+      { header: "Hostname", value: (d) => d.hostname },
+      { header: "Type", value: (d) => d.device_type },
+      { header: "IP", value: (d) => d.ip_address },
+      { header: "Site", value: (d) => d.site },
+      { header: "Department", value: (d) => d.department },
+      { header: "Status", value: (d) => d.status },
+      { header: "Maintenance", value: (d) => (maintenanceCover[d.device_id] ? `yes (${maintenanceCover[d.device_id]})` : "") },
+      { header: "Last seen", value: (d) => (d.last_seen_at ? new Date(d.last_seen_at).toLocaleString() : "") },
+    ]);
+    downloadCsv(`netsentinel-devices-${stamp()}.csv`, csv);
+  }
 
   async function refresh() {
     setDevices(await DevicesApi.list());
@@ -46,16 +76,21 @@ export function DevicesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-stone-900">Devices</h1>
           <p className="text-sm text-stone-500">Everything the collector polls, simulated or real.</p>
         </div>
-        {hasRole("admin") && (
-          <Button onClick={() => setShowForm((v) => !v)} variant="secondary">
-            {showForm ? "Cancel" : "Add device"}
+        <div className="flex gap-2">
+          <Button onClick={exportCsv} variant="secondary" disabled={!visible.length}>
+            <Download className="h-4 w-4" /> Export CSV
           </Button>
-        )}
+          {hasRole("admin") && (
+            <Button onClick={() => setShowForm((v) => !v)} variant="secondary">
+              {showForm ? "Cancel" : "Add device"}
+            </Button>
+          )}
+        </div>
       </div>
 
       {showForm && (
@@ -108,8 +143,18 @@ export function DevicesPage() {
       )}
 
       <Card>
-        <div className="overflow-hidden rounded-lg border border-stone-200">
-          <table className="w-full text-left text-sm">
+        <FilterBar
+          query={query}
+          onQuery={setQuery}
+          placeholder="Filter by name, IP, type or site"
+          options={["all", "online", "degraded", "offline", "unknown"]}
+          value={statusFilter}
+          onChange={setStatusFilter}
+          count={visible.length}
+          total={devices?.length ?? 0}
+        />
+        <div className="overflow-x-auto rounded-lg border border-stone-200">
+          <table className="w-full min-w-[640px] text-left text-sm">
             <thead className="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
               <tr>
                 <th className="px-3 py-2">Device</th>
@@ -121,7 +166,7 @@ export function DevicesPage() {
               </tr>
             </thead>
             <tbody>
-              {(devices ?? []).map((d) => (
+              {visible.map((d) => (
                 <tr key={d.device_id} className="border-t border-stone-200 hover:bg-stone-50">
                   <td className="px-3 py-2.5">
                     <Link to={`/devices/${d.device_id}`} className="font-medium text-brand-orange-ink hover:underline">
@@ -135,7 +180,10 @@ export function DevicesPage() {
                     {d.site} / {d.department}
                   </td>
                   <td className="px-3 py-2.5">
-                    <StatusBadge status={d.status} />
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <StatusBadge status={d.status} />
+                      <MaintenanceBadge deviceId={d.device_id} />
+                    </div>
                   </td>
                   <td className="px-3 py-2.5 text-xs text-stone-500">
                     {d.last_seen_at ? new Date(d.last_seen_at).toLocaleTimeString() : "never"}
@@ -144,6 +192,7 @@ export function DevicesPage() {
               ))}
             </tbody>
           </table>
+          {devices && visible.length === 0 && <p className="p-4 text-sm text-stone-500">No devices match this filter.</p>}
         </div>
       </Card>
     </div>

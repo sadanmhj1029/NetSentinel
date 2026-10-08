@@ -34,6 +34,7 @@ from app.incidents.checks import EVENT_LABELS, checks_for
 from app.ml.infer import score_device
 from app.ml.model_store import model_store
 from app.models.device import Device
+from app.services.maintenance import suppressed_devices
 from app.models.event import Event
 from app.models.incident import Incident
 from app.models.interface import Interface
@@ -63,6 +64,7 @@ class TickSummary:
     incidents_created: list[dict] = field(default_factory=list)
     incidents_updated: list[dict] = field(default_factory=list)
     incidents_resolved: list[dict] = field(default_factory=list)
+    suppressed_devices: list[str] = field(default_factory=list)
     pending_notifications: list[dict] = field(default_factory=list)
 
 
@@ -277,9 +279,20 @@ class IncidentEngine:
         graph = load_graph(db)
         open_events = db.query(Event).filter(Event.status == "open").all()
 
+        # Planned maintenance: faults on covered devices stay recorded as
+        # events but don't open new incidents. A device already inside an
+        # open incident keeps feeding it, so starting maintenance mid-incident
+        # can't make the incident look "recovered" while the fault is still there.
+        covered = suppressed_devices(db, graph, now)
+        tracked = set().union(*self._incident_members.values()) if self._incident_members else set()
+        summary.suppressed_devices = sorted(d for d in covered if d not in tracked)
+        skip = set(summary.suppressed_devices)
+
         affected: dict[str, AffectedDevice] = {}
         event_ids_by_device: dict[str, list[int]] = {}
         for event in open_events:
+            if event.device_id in skip:
+                continue
             event_ids_by_device.setdefault(event.device_id, []).append(event.id)
             if event.device_id not in affected:
                 affected[event.device_id] = AffectedDevice(event.device_id, event.timestamp, [event.event_type])

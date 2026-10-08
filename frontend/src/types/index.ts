@@ -186,6 +186,8 @@ export interface PriorityResult {
   why_first: string | null;
   weights?: { impact: number; workload: number; severity: number; role: number };
   ranked: PriorityItem[];
+  /** Devices left out of the ranking because of planned maintenance. */
+  in_maintenance?: string[];
 }
 
 // Matches what /api/collector/health and the websocket tick actually send.
@@ -254,6 +256,11 @@ export interface User {
 
 export interface TickMessage {
   type: "tick" | "tick_error";
+  /** Only on tick_error: how many ticks in a row have failed. */
+  consecutive_errors?: number;
+  incidents_created_detail?: { incident_id: string; title?: string; severity?: string; root_cause?: string | null }[];
+  /** Devices whose faults are being held back by planned maintenance. */
+  in_maintenance?: string[];
   timestamp?: string;
   collector_healthy?: boolean;
   device_status?: Record<string, DeviceStatus>;
@@ -264,4 +271,61 @@ export interface TickMessage {
   incidents_updated?: string[];
   incidents_resolved?: string[];
   collector_health?: CollectorHealth;
+}
+
+export interface MaintenanceWindow {
+  id: number;
+  device_id: string;
+  reason: string;
+  starts_at: string;
+  ends_at: string;
+  created_by: string;
+  ended_early: boolean;
+  active: boolean;
+  seconds_left: number;
+  /** Devices behind this one in the topology, also covered. Only on the active list. */
+  covers?: string[];
+}
+
+export interface HealthCheck {
+  ok: boolean;
+  detail?: string;
+  latency_ms?: number;
+  error?: string;
+}
+
+export interface SystemStatus {
+  version: string;
+  ready: boolean;
+  checks: { database: HealthCheck; scheduler: HealthCheck };
+  pipeline: {
+    started_at: string;
+    uptime_seconds: number;
+    last_tick_at: string | null;
+    seconds_since_tick: number | null;
+    last_tick_ms: number | null;
+    consecutive_errors: number;
+    total_ticks: number;
+    total_errors: number;
+    last_error: string | null;
+    last_error_at: string | null;
+    last_prune_at: string | null;
+    last_prune_deleted: number;
+  };
+  collector: CollectorHealth;
+  counts: {
+    devices: number;
+    metric_samples: number;
+    open_incidents: number;
+    maintenance_active: number;
+    live_clients: number;
+    login_lockouts: number;
+  };
+  ml: { status: string; enabled: boolean; trained_at: string | null };
+  settings: {
+    poll_interval_seconds: number;
+    metric_retention_hours: number;
+    login_max_attempts: number;
+    login_lockout_seconds: number;
+  };
 }
